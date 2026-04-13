@@ -21,8 +21,8 @@ const TOPIC_FINGER_CMD    = "safe1/fingercmd";
 const TOPIC_FINGER_STATUS = "safe1/fingerstatus";
 const TOPIC_FACE_RESULT   = "safe1/faceresult";   // ← Topic mới: gửi kết quả nhận diện khuôn mặt
 const WS_PORT             = process.env.PORT || 3000;
-// const FACE_SERVICE_URL    = "http://localhost:5001/recognize";
-// const FACE_RELOAD_URL     = "http://localhost:5001/reload";
+const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
+const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
 const RECOGNIZE_COOLDOWN  = 3000;
 
 // ── Thư mục lưu ảnh khuôn mặt mẫu (phải khớp với KNOWN_FACES_DIR trong face_service.py) ──
