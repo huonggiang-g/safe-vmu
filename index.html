@@ -614,7 +614,8 @@
 // ═══════════════════════════════════════════
 //  CONFIG & STATE
 // ═══════════════════════════════════════════
-const WS_URL   = `ws://${location.hostname}:3000`;
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL   = `${protocol}//${window.location.host}`;
 const MAX_THUMBS = 8;
 const MAX_LOGS   = 80;
 
