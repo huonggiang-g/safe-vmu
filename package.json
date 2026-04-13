@@ -1,0 +1,20 @@
+{
+  "name": "safe-vmu-server",
+  "version": "1.0.0",
+  "description": "MQTT → WebSocket bridge for ESP32-S3 camera",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.1",
+    "mqtt": "^5.3.4",
+    "multer": "^2.1.1",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.20.0",
+    "ws": "^8.16.0"
+  }
+}
