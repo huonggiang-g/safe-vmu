@@ -1058,7 +1058,7 @@ async function saveEnrollPhoto() {
     formData.append("name", name);
     formData.append("photo", enrollPhotoBlob, `${name}_${Date.now()}.jpg`);
 
-    const res = await fetch("/api/enroll-face", { method: "POST", body: formData });
+    const res = await fetch("/api/register-owner", { method: "POST", body: formData });
     const data = await res.json();
 
     if (res.ok && data.success) {
