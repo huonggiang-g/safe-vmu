@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
     "mqtt": "^5.3.4",
