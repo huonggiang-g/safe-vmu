@@ -10,6 +10,9 @@ const mqtt      = require("mqtt");
 const path      = require("path");
 const fs        = require("fs");
 const multer    = require("multer");
+const cors = require('cors');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const MQTT_BROKER         = "mqtts://e539507d822e4b348dc6f0af2600bd01.s1.eu.hivemq.cloud:8883";
 const MQTT_USER           = "ketsat";
@@ -24,6 +27,16 @@ const WS_PORT             = process.env.PORT || 3000;
 const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
 const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
 const RECOGNIZE_COOLDOWN  = 3000;
+
+const { createClient } = require('@supabase/supabase-js');
+const SUPABASE_URL = process.env.SUPABASE_URL; // URL từ file .env
+const SUPABASE_KEY = process.env.SUPABASE_KEY; // Key từ file .env
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error("LỖI: Chưa cấu hình SUPABASE_URL hoặc SUPABASE_KEY trong file .env");
+    process.exit(1);
+}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── Thư mục lưu ảnh khuôn mặt mẫu (phải khớp với KNOWN_FACES_DIR trong face_service.py) ──
 const DATA_FACE_DIR = path.join(__dirname, "data_face");
@@ -59,11 +72,90 @@ const upload = multer({
   console.log("[INIT] ✅ node-fetch đã sẵn sàng");
 
   const app    = express();
+  app.use(cors());
   const server = http.createServer(app);
 
   app.use(express.static(path.join(__dirname)));
   app.use(express.json({ limit: "10mb" }));
   app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+
+  app.post('/api/auth/register', async (req, res) => {
+      try {
+          const { full_name, email, password } = req.body;
+
+          // 1. Kiểm tra dữ liệu đầu vào
+          if (!full_name || !email || !password) {
+              return res.status(400).json({ success: false, error: "Vui lòng nhập đủ Họ tên, Email và Mật khẩu" });
+          }
+
+          // 2. Kiểm tra xem Email đã tồn tại chưa
+          const { data: existingUser, error: checkError } = await supabase
+              .from('accounts')
+              .select('id')
+              .eq('email', email)
+              .single();
+
+          // Lưu ý: .single() ném ra lỗi 'PGRST116' nếu không tìm thấy, đây là hành vi bình thường.
+          if (existingUser) {
+              return res.status(409).json({ success: false, error: "Email này đã được sử dụng" });
+          }
+
+          // 3. Mã hóa mật khẩu (Băm 10 vòng)
+          const saltRounds = 10;
+          const password_hash = await bcrypt.hash(password, saltRounds);
+
+          // 4. Lưu vào Database (Mặc định là User)
+          const { data: newUser, error: insertError } = await supabase
+              .from('accounts')
+              .insert([
+                  {
+                      full_name: full_name,
+                      email: email,
+                      password_hash: password_hash,
+                      role: 'user' // Mặc định ai đăng ký cũng là user
+                  }
+              ])
+              .select('id, full_name, email, role')
+              .single();
+
+          if (insertError) throw insertError;
+
+          res.json({ 
+              success: true, 
+              message: "Đăng ký thành công!",
+              user: newUser 
+          });
+
+      } catch (err) {
+          // Xử lý lỗi an toàn nếu người dùng chưa tồn tại
+          if (err.code === 'PGRST116') {
+                // Tiếp tục tạo người dùng mới vì email chưa tồn tại
+                try {
+                     const saltRounds = 10;
+                     const password_hash = await bcrypt.hash(req.body.password, saltRounds);
+                     const { data: newUser, error: insertError } = await supabase
+                         .from('accounts')
+                         .insert([{
+                             full_name: req.body.full_name,
+                             email: req.body.email,
+                             password_hash: password_hash,
+                             role: 'user' 
+                         }])
+                         .select('id, full_name, email, role')
+                         .single();
+
+                     if (insertError) throw insertError;
+
+                     return res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
+                } catch (innerErr) {
+                     console.error("Lỗi khi tạo user mới:", innerErr);
+                     return res.status(500).json({ success: false, error: "Lỗi tạo tài khoản" });
+                }
+          }
+          console.error("Lỗi đăng ký:", err);
+          res.status(500).json({ success: false, error: "Lỗi máy chủ cục bộ" });
+      }
+  });
 
   // ── REST API: Đăng ký khuôn mặt mới ──
   app.post("/api/register-owner", upload.single("photo"), async (req, res) => {
