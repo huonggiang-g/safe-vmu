@@ -1,59 +1,140 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Đăng Ký | SAFE VMU</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="client_auth.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng Ký | SAFE VMU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="client_auth.js"></script>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-box">
-            <div class="auth-title">INITIATE ACCOUNT</div>
-            <div id="msg" style="color: var(--red); margin-bottom: 10px; font-size: 0.8rem;"></div>
-            
-            <input type="text" id="name" class="input-hud" placeholder="HỌ VÀ TÊN">
-            <input type="email" id="email" class="input-hud" placeholder="EMAIL">
-            <input type="password" id="password" class="input-hud" placeholder="MẬT KHẨU (>8 KÝ TỰ)">
-            
-            <button class="btn" style="width: 100%" onclick="register()">ĐĂNG KÝ</button>
-            
-            <a href="login.html" class="auth-link">Đã có mã định danh? Đăng nhập</a>
+  <div class="auth-wrap">
+    <div class="auth-card">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🛡️</div>
+        <div>
+          <div class="auth-brand">SAFE VMU</div>
+          <div class="auth-brand-sub">SURVEILLANCE SYSTEM v1.0</div>
         </div>
+      </div>
+
+      <div class="auth-title">Tạo tài khoản mới</div>
+      <div class="auth-subtitle">Đăng ký để được cấp quyền truy cập hệ thống</div>
+
+      <!-- Message -->
+      <div class="msg-box" id="msg"></div>
+
+      <!-- Form -->
+      <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input type="text" id="name" class="input-field" placeholder="Nguyễn Văn A" autocomplete="name">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="input-field" placeholder="example@vmust.edu.vn" autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+        <div style="position:relative;">
+          <input type="password" id="password" class="input-field" placeholder="Tối thiểu 8 ký tự"
+                 style="padding-right:44px;" onkeydown="if(event.key==='Enter') register()">
+          <button onclick="togglePw()"
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">
+            👁
+          </button>
+        </div>
+        <!-- Password strength -->
+        <div style="margin-top:8px;display:flex;gap:4px;" id="pwStrengthBar">
+          <div class="pw-seg" id="seg1"></div>
+          <div class="pw-seg" id="seg2"></div>
+          <div class="pw-seg" id="seg3"></div>
+          <div class="pw-seg" id="seg4"></div>
+        </div>
+        <div id="pwStrengthLabel" style="font-size:0.72rem;color:var(--muted);margin-top:4px;"></div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:0.95rem;margin-top:4px;" onclick="register()">
+        Đăng ký tài khoản
+      </button>
+
+      <p class="auth-link">
+        Đã có tài khoản? <a href="login.html">Đăng nhập</a>
+      </p>
+
     </div>
+  </div>
 
-    <script>
-        async function register() {
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
+  <style>
+    .pw-seg {
+      flex: 1; height: 3px; border-radius: 2px;
+      background: var(--border);
+      transition: background .2s;
+    }
+  </style>
 
-            msg.textContent = "Đang thiết lập...";
-            msg.style.color = "var(--accent)";
+  <script>
+    function togglePw() {
+      const pw = document.getElementById('password');
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+    }
 
-            try {
-                const res = await fetch(`${API_BASE}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    // Thêm role='user' để khớp với backend pg của bạn
-                    body: JSON.stringify({ full_name: name, email, password, role: 'user' }) 
-                });
-                const data = await res.json();
+    document.getElementById('password').addEventListener('input', function() {
+      const val = this.value;
+      const segs = [document.getElementById('seg1'), document.getElementById('seg2'),
+                    document.getElementById('seg3'), document.getElementById('seg4')];
+      const label = document.getElementById('pwStrengthLabel');
+      let score = 0;
+      if (val.length >= 8)  score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+      const colors = ['var(--red)', 'var(--orange)', 'var(--accent)', 'var(--green)'];
+      const labels = ['Yếu', 'Trung bình', 'Khá mạnh', 'Rất mạnh'];
+      segs.forEach((s, i) => s.style.background = i < score ? colors[score - 1] : 'var(--border)');
+      label.textContent = val.length ? labels[score - 1] || '' : '';
+      label.style.color = val.length && score ? colors[score - 1] : 'var(--muted)';
+    });
 
-                if (data.success || data.account) {
-                    msg.textContent = "Đăng ký thành công! Đang chuyển...";
-                    msg.style.color = "#2ed573";
-                    setTimeout(() => { window.location.href = '/login.html'; }, 1500);
-                } else {
-                    msg.textContent = data.error || "Lỗi đăng ký";
-                    msg.style.color = "var(--red)";
-                }
-            } catch (err) {
-                msg.textContent = "Lỗi kết nối Server!";
-                msg.style.color = "var(--red)";
-            }
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg-box show ' + type;
+    }
+
+    async function register() {
+      const name     = document.getElementById('name').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!name || !email || !password) { showMsg('Vui lòng điền đầy đủ thông tin.', 'error'); return; }
+      if (password.length < 8) { showMsg('Mật khẩu phải có ít nhất 8 ký tự.', 'error'); return; }
+
+      showMsg('Đang thiết lập tài khoản...', 'loading');
+
+      try {
+        const res  = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: name, email, password, role: 'user' })
+        });
+        const data = await res.json();
+
+        if (data.success || data.account) {
+          showMsg('Đăng ký thành công! Đang chuyển đến trang đăng nhập...', 'success');
+          setTimeout(() => { window.location.href = '/login.html'; }, 1500);
+        } else {
+          showMsg(data.error || 'Lỗi đăng ký, vui lòng thử lại.', 'error');
         }
-    </script>
+      } catch (err) {
+        showMsg('Lỗi kết nối máy chủ!', 'error');
+      }
+    }
+  </script>
 </body>
 </html>

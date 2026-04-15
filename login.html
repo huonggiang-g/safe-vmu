@@ -1,58 +1,102 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Đăng Nhập | SAFE VMU</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="client_auth.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng Nhập | SAFE VMU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="client_auth.js"></script>
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-box">
-            <div class="auth-title">SYSTEM LOGIN</div>
-            <div id="msg" style="color: var(--red); margin-bottom: 10px; font-size: 0.8rem;"></div>
-            
-            <input type="email" id="email" class="input-hud" placeholder="EMAIL VÀO HỆ THỐNG">
-            <input type="password" id="password" class="input-hud" placeholder="MẬT KHẨU">
-            
-            <button class="btn" style="width: 100%" onclick="login()">KÍCH HOẠT</button>
-            
-            <a href="register.html" class="auth-link">Chưa có mã định danh? Đăng ký</a>
+  <div class="auth-wrap">
+    <div class="auth-card">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🔐</div>
+        <div>
+          <div class="auth-brand">SAFE VMU</div>
+          <div class="auth-brand-sub">SURVEILLANCE SYSTEM v1.0</div>
         </div>
+      </div>
+
+      <div class="auth-title">Chào mừng trở lại</div>
+      <div class="auth-subtitle">Đăng nhập để truy cập hệ thống giám sát két sắt</div>
+
+      <!-- Message -->
+      <div class="msg-box" id="msg"></div>
+
+      <!-- Form -->
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="input-field" placeholder="admin@vmust.edu.vn" autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+        <div style="position:relative;">
+          <input type="password" id="password" class="input-field" placeholder="••••••••" autocomplete="current-password"
+                 style="padding-right:44px;" onkeydown="if(event.key==='Enter') login()">
+          <button onclick="togglePw()" id="pwToggle"
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">
+            👁
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:0.95rem;margin-top:4px;" onclick="login()">
+        Đăng nhập
+      </button>
+
+      <p class="auth-link">
+        Chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
+      </p>
+
     </div>
+  </div>
 
-    <script>
-        async function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
+  <script>
+    function togglePw() {
+      const pw = document.getElementById('password');
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+    }
 
-            msg.textContent = "Đang xác thực...";
-            msg.style.color = "var(--accent)";
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg-box show ' + type;
+    }
 
-            try {
-                const res = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await res.json();
+    async function login() {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) { showMsg('Vui lòng nhập đầy đủ thông tin.', 'error'); return; }
 
-                if (data.success) {
-                    // LƯU TOKEN THEO ĐÚNG BACKEND CỦA BẠN
-                    localStorage.setItem('safeToken', data.token);
-                    localStorage.setItem('safeUser', JSON.stringify(data.user));
-                    localStorage.setItem('safeRoles', JSON.stringify(data.roles || {}));
-                    window.location.href = '/index.html';
-                } else {
-                    msg.textContent = data.error;
-                    msg.style.color = "var(--red)";
-                }
-            } catch (err) {
-                msg.textContent = "Lỗi kết nối Server!";
-                msg.style.color = "var(--red)";
-            }
+      showMsg('Đang xác thực...', 'loading');
+
+      try {
+        const res  = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          localStorage.setItem('safeToken', data.token);
+          localStorage.setItem('safeUser',  JSON.stringify(data.user));
+          localStorage.setItem('safeRoles', JSON.stringify(data.roles || {}));
+          showMsg('Xác thực thành công! Đang chuyển hướng...', 'success');
+          setTimeout(() => { window.location.href = '/index.html'; }, 800);
+        } else {
+          showMsg(data.error || 'Sai email hoặc mật khẩu.', 'error');
         }
-    </script>
+      } catch (err) {
+        showMsg('Lỗi kết nối máy chủ!', 'error');
+      }
+    }
+  </script>
 </body>
 </html>
