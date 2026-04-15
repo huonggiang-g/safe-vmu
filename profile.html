@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tài khoản của tôi | SAFE VMU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="client_auth.js"></script>
+  <style>
+    /* Khung chứa nội dung Profile */
+    .profile-container { max-width: 500px; margin: 40px auto; background: var(--panel, #0c1018); border: 1px solid var(--border, #1a2535); padding: 30px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .profile-title { color: var(--text, #fff); font-size: 1.5rem; text-align: center; margin-bottom: 25px; border-bottom: 1px solid var(--border, #1a2535); padding-bottom: 15px; }
+    
+    /* Tái sử dụng CSS của Form đăng nhập */
+    .form-group { margin-bottom: 15px; }
+    .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #9ca3af; margin-bottom: 6px; }
+    .input-field { width: 100%; padding: 12px; border: 2px solid var(--border, #374151); border-radius: 8px; box-sizing: border-box; background: rgba(0,0,0,0.2); color: var(--text, #fff); font-family: inherit; outline: none; transition: 0.2s; }
+    .input-field:focus { border-color: var(--accent, #00e5ff); }
+    .input-field:disabled { background: rgba(255,255,255,0.05); color: #6b7280; cursor: not-allowed; border-color: transparent; }
+    
+    .btn-update { width: 100%; padding: 14px; background: var(--accent, #00e5ff); color: #000; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; margin-top: 15px; }
+    .btn-update:hover { box-shadow: 0 0 15px var(--accent, #00e5ff); }
+    
+    .msg-box { padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; display: none; text-align: center; }
+    .msg-box.show { display: block; }
+    .msg-box.error { background: #501010; color: #ff8a8a; border: 1px solid #ff3355; }
+    .msg-box.success { background: #0b4020; color: #8affb3; border: 1px solid #00ff88; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-links">
+    <a href="index.html">🏠 Trang chủ</a>
+    <a href="history.html">📋 Lịch sử</a>
+    <a href="profile.html" class="active">👤 Tài khoản</a>
+  </div>
+  <div class="nav-user">
+    <span id="userNameDisplay" style="font-weight:600;">User</span>
+    <button class="btn btn-danger" style="padding:6px 14px;font-size:0.78rem;" onclick="doLogout()">Đăng xuất</button>
+  </div>
+</nav>
+
+<div class="profile-container">
+    <div class="profile-title">HỒ SƠ CỦA TÔI</div>
+    
+    <div id="msg" class="msg-box"></div>
+
+    <div class="form-group">
+        <label class="form-label">Email (Tài khoản đăng nhập)</label>
+        <input type="email" id="profEmail" class="input-field" disabled>
+        <div style="font-size: 0.7rem; color: #6b7280; margin-top: 5px;">* Email không thể thay đổi sau khi đăng ký.</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input type="text" id="profName" class="input-field" placeholder="Nhập họ và tên...">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Đổi mật khẩu mới (Tùy chọn)</label>
+        <input type="password" id="profPassword" class="input-field" placeholder="Bỏ trống nếu không muốn đổi mật khẩu">
+    </div>
+
+    <button id="btnUpdate" class="btn-update" onclick="updateProfile()">💾 LƯU THAY ĐỔI</button>
+</div>
+
+<script>
+    // 1. Tải thông tin người dùng từ LocalStorage khi mở trang
+    const currentUser = getCurrentUser(); // Hàm này lấy từ client_auth.js
+    
+    if (currentUser) {
+        document.getElementById('userNameDisplay').textContent = currentUser.full_name;
+        document.getElementById('profEmail').value = currentUser.email;
+        document.getElementById('profName').value = currentUser.full_name;
+    }
+
+    function showMsg(text, type) {
+        const el = document.getElementById('msg');
+        el.textContent = text;
+        el.className = 'msg-box show ' + type;
+    }
+
+    // 2. Gửi API Cập nhật
+    async function updateProfile() {
+        const newName = document.getElementById('profName').value.trim();
+        const newPassword = document.getElementById('profPassword').value;
+        const btn = document.getElementById('btnUpdate');
+
+        if (!newName) return showMsg("Họ và tên không được để trống!", "error");
+
+        btn.disabled = true;
+        btn.textContent = "⏳ ĐANG LƯU...";
+        
+        // Gọi API_BASE (Lấy link hiện tại hoặc localhost nếu chạy offline)
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : `https://${window.location.hostname}`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/auth/update-profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: currentUser.id,
+                    full_name: newName,
+                    new_password: newPassword
+                })
+            });
+            
+            const data = await res.json();
+
+            if (data.success) {
+                showMsg(data.message, "success");
+                
+                // Cập nhật lại thông tin mới vào LocalStorage
+                localStorage.setItem('safeUser', JSON.stringify(data.user));
+                
+                // Cập nhật lại tên trên góc phải màn hình
+                document.getElementById('userNameDisplay').textContent = data.user.full_name;
+                
+                // Xóa ô nhập mật khẩu để tránh nhầm lẫn
+                document.getElementById('profPassword').value = "";
+            } else {
+                showMsg(data.error, "error");
+            }
+        } catch (err) {
+            showMsg("Lỗi kết nối tới Server!", "error");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "💾 LƯU THAY ĐỔI";
+        }
+    }
+</script>
+</body>
+</html>
