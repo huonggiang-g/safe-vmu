@@ -40,10 +40,15 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // dùng cổng 465 thì để true
     auth: {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false 
     }
 });
 
