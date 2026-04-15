@@ -216,8 +216,9 @@
       _em = document.getElementById('fpEmail').value.trim();
       if (!_em) return showAlert('Vui lòng nhập email', 'error');
       try {
-        const r = await fetch(`${API_BASE}/auth/forgot-password`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
+        const r = await fetch(`${API_BASE}/api/auth/forgot-password`, { 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ email: _em })
         });
         const d = await r.json();
@@ -258,9 +259,10 @@
       const pw2 = document.getElementById('fp2').value;
       if (pw !== pw2) return showAlert('Mật khẩu không khớp', 'error');
       try {
-        const r = await fetch(`${API_BASE}/auth/reset-password`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ email: _em, otp: _otp, new_password: pw })
+        const r = await fetch(`${API_BASE}/api/auth/reset-password`, { // THÊM /api
+          method:'POST', 
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email:_em, otp:_otp, new_password:pw })
         });
         const d = await r.json();
         if (d.success) goS(4); else showAlert(d.error, 'error');
