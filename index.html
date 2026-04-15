@@ -273,103 +273,177 @@ tick(); setInterval(tick, 1000);
 // ════ LOG ════
 function addLog(type, msg) {
   const now = new Date().toLocaleTimeString('vi-VN');
-  const icons = { face: '🫥', finger: '🫆', info: 'ℹ️', warn: '⚠️', status: '✅', error: '❌' };
+  const icons = { face: '🫥', finger: '🫆', info: 'ℹ️', warn: '⚠️', status: '✅', error: '❌', photo: '📸' };
   const icon  = icons[type] || '•';
 
-  // Remove placeholder if first
   if (logCount === 0) logContainer.innerHTML = '';
 
   const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.innerHTML = `
-    <span class="log-entry-icon">${icon}</span>
-    <div class="log-entry-content">
-      <div class="log-entry-msg">${msg}</div>
-      <div class="log-entry-time">${now}</div>
-    </div>`;
-  logContainer.prepend(entry);
+  entry.className = `log-entry`;
+  entry.style.padding = "8px 10px";
+  entry.style.borderLeft = "2px solid var(--accent)";
+  entry.style.marginBottom = "4px";
+  entry.style.background = "rgba(0,0,0,0.2)";
+  
+  if(type === 'error') entry.style.borderLeftColor = "var(--red)";
+  if(type === 'status') entry.style.borderLeftColor = "var(--green)";
 
+  entry.innerHTML = `
+    <div style="display:flex; align-items:flex-start; gap:8px;">
+      <span>${icon}</span>
+      <div>
+        <div style="font-size:0.75rem; color:var(--text);">${msg}</div>
+        <div style="font-size:0.6rem; color:var(--muted); margin-top:2px;">${now}</div>
+      </div>
+    </div>`;
+    
+  logContainer.prepend(entry);
   logCount++;
   document.getElementById('logCount').textContent = logCount;
   if (logContainer.children.length > MAX_LOGS) logContainer.lastChild.remove();
 }
+
 function clearLogs() {
   logContainer.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện nào...</div>';
   logCount = 0;
   document.getElementById('logCount').textContent = '0';
 }
+
 // ════ WEBSOCKET ════
 function connect() {
   ws = new WebSocket(WS_URL);
-  ws.binaryType = 'arraybuffer';
-  const dot = document.getElementById('wsDot');
-  const lbl = document.getElementById('wsLabel');
 
   ws.onopen = () => {
-    dot.classList.add('online');
-    lbl.textContent = 'WebSocket: Đã kết nối';
+    document.getElementById('wsDot').classList.add('online');
+    document.getElementById('wsLabel').textContent = 'WebSocket: Đã kết nối';
     addLog('status', 'WebSocket kết nối thành công');
+    setTimeout(() => {
+      if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "finger_list" }));
+    }, 500);
   };
+  
   ws.onclose = () => {
-    dot.classList.remove('online');
-    lbl.textContent = 'WebSocket: Đã ngắt kết nối';
+    document.getElementById('wsDot').classList.remove('online');
+    document.getElementById('wsLabel').textContent = 'WebSocket: Đã ngắt kết nối';
     addLog('warn', 'WebSocket mất kết nối — thử lại sau 3s');
+    document.getElementById('mqttBadge').className = 'conn-badge offline';
+    document.getElementById('mqttLabel').textContent = 'MQTT OFFLINE';
     setTimeout(connect, 3000);
   };
+  
   ws.onerror = () => addLog('error', 'Lỗi WebSocket');
 
   ws.onmessage = (event) => {
-    if (typeof event.data === 'string') {
-      handleTextMsg(event.data);
-    } else {
-      handleImageFrame(event.data);
+    try {
+      const msg = JSON.parse(event.data);
+      handleMessage(msg);
+    } catch (e) {
+      // Bỏ qua nếu dữ liệu không phải JSON hợp lệ
     }
   };
 }
 
-function handleTextMsg(raw) {
-  try {
-    const msg = JSON.parse(raw);
-    if (msg.type === 'face_result') {
-      updateFacePanel(msg);
-      addLog('face', `Nhận diện: ${msg.name || 'Không rõ'} (${(msg.confidence * 100).toFixed(0)}%)`);
-    } else if (msg.type === 'finger_result') {
-      updateFingerPanel(msg);
-      addLog('finger', `Vân tay: ${msg.name || 'ID ' + msg.id}`);
-    } else if (msg.type === 'stats') {
-      document.getElementById('wsClients').textContent = msg.clients || '—';
-    } else if (msg.type === 'status') {
+function handleMessage(msg) {
+  switch (msg.type) {
+    case "photo":
+      showImage(msg);
+      break;
+    case "recognizing":
+      setFacePanel("scanning", "🔍", "ĐANG NHẬN DẠNG...", "Đang xử lý ảnh", null);
+      break;
+    case "recognition_result":
+      const conf = msg.confidence || 0;
+      if (!msg.detected) {
+        setFacePanel("idle", "👤", "KHÔNG CÓ KHUÔN MẶT", "Không detect được", 0);
+        addLog("info", "Không phát hiện khuôn mặt");
+      } else if (msg.recognized) {
+        setFacePanel("granted", "✅", "ĐÃ NHẬN DIỆN · MỞ KHÓA", msg.name, conf);
+        addLog("status", `✅ Nhận diện: ${msg.name} (${(conf*100).toFixed(1)}%)`);
+      } else {
+        setFacePanel("denied", "❌", "KHÔNG NHẬN DIỆN ĐƯỢC", "Người lạ / Unknown", conf);
+        addLog("error", `❌ Khuôn mặt lạ`);
+      }
+      break;
+    case "unlock_sent":
+      const camFrame = document.getElementById("camFrame");
+      camFrame.classList.remove("unlocked");
+      void camFrame.offsetWidth;
+      camFrame.classList.add("unlocked");
+      addLog("status", `🔓 Lệnh UNLOCK gửi → ESP32 (${msg.name})`);
+      break;
+    case "face_service_error":
+      setFacePanel("denied", "⚠️", "FACE SERVICE LỖI", msg.error, 0);
+      addLog("error", `Face service: ${msg.error}`);
+      break;
+    case "faces_reloaded":
+      addLog("info", `🔄 Reload ${msg.count} khuôn mặt`);
+      loadFaceDbList();
+      break;
+    case "status":
       const badge = document.getElementById('mqttBadge');
       const lbl   = document.getElementById('mqttLabel');
       badge.className = 'conn-badge ' + (msg.connected ? 'online' : 'offline');
       lbl.textContent = msg.connected ? 'MQTT ONLINE' : 'MQTT OFFLINE';
-    }
-  } catch (_) { /* not JSON */ }
+      if (msg.clients !== undefined) document.getElementById('wsClients').textContent = msg.clients;
+      addLog("status", msg.connected ? "MQTT broker: Online" : "MQTT broker: Offline");
+      break;
+    case "log":
+      if (msg.event === "photo_sent") addLog("status", "ESP32: Đã gửi ảnh lên MQTT");
+      else if (msg.status === "online") addLog("status", "ESP32: Device Online");
+      else addLog("info", JSON.stringify(msg));
+      break;
+    case "finger_status":
+      handleFingerStatus(msg);
+      break;
+    case "finger_list":
+      renderFingerList(msg.db);
+      break;
+    case "face_enrolled":
+    case "face_deleted":
+      loadFaceDbList();
+      break;
+  }
 }
 
-function handleImageFrame(data) {
-  const blob = new Blob([data], { type: 'image/jpeg' });
-  const url  = URL.createObjectURL(blob);
-  camImage.onload = () => URL.revokeObjectURL(url);
-  camImage.src    = url;
+function showImage(msg) {
+  const src = "data:image/jpeg;base64," + msg.data;
+  camImage.src = src;
   camImage.style.display = 'block';
   placeholder.style.display = 'none';
 
-  const sizeKB = (data.byteLength / 1024).toFixed(1);
-  const now    = new Date().toLocaleTimeString('vi-VN');
+  document.getElementById('hudOverlay').classList.add('show');
+  recBadge.classList.add('active');
+
+  const sizeKB = (msg.size / 1024).toFixed(1);
+  const now    = new Date(msg.timestamp).toLocaleTimeString('vi-VN');
+  
   hudTime.textContent = now;
   hudSize.textContent = sizeKB + ' KB';
   document.getElementById('lastSize').textContent = sizeKB + ' KB';
   document.getElementById('lastTime').textContent = now;
+  
   frameCount++;
   document.getElementById('frameCount').textContent = frameCount;
 
-  addThumb(url);
+  addThumb(src);
 }
 
 function addThumb(url) {
   const img = document.createElement('img');
   img.src = url;
+  img.style.width = '60px'; 
+  img.style.height = '45px'; 
+  img.style.objectFit = 'cover';
+  img.style.borderRadius = '2px'; 
+  img.style.cursor = 'pointer';
+  img.style.border = '1px solid var(--border)';
+  
+  img.onclick = () => {
+    camImage.src = url; 
+    camImage.style.display = "block";
+    placeholder.style.display = "none";
+  };
+
   if (thumbStrip.children[0]?.tagName !== 'IMG') thumbStrip.innerHTML = '';
   thumbStrip.prepend(img);
   thumbs.unshift(url);
@@ -380,62 +454,139 @@ function addThumb(url) {
 }
 
 // ════ FACE PANEL ════
-function updateFacePanel(msg) {
+function setFacePanel(state, icon, statusText, nameText, confValue) {
   const avatar = document.getElementById('faceAvatar');
   const status = document.getElementById('faceStatus');
   const name   = document.getElementById('faceName');
   const conf   = document.getElementById('faceConf');
   const fill   = document.getElementById('confFill');
-  const ok     = msg.result === 'success';
 
-  avatar.className = 'face-avatar ' + (ok ? 'success' : 'fail');
-  avatar.textContent = ok ? '✅' : '❌';
-  status.textContent = ok ? 'NHẬN DIỆN THÀNH CÔNG' : 'KHÔNG NHẬN DIỆN ĐƯỢC';
-  status.style.color = ok ? 'var(--green)' : 'var(--red)';
-  name.textContent   = msg.name || '—';
-  const pct = Math.round((msg.confidence || 0) * 100);
-  conf.textContent   = `Độ chính xác: ${pct}%`;
-  fill.style.width   = pct + '%';
-  fill.style.background = ok ? 'var(--green)' : 'var(--red)';
-}
+  avatar.textContent = icon;
+  status.textContent = statusText;
+  name.textContent   = nameText || '—';
 
-// ════ FINGER PANEL ════
-function updateFingerPanel(msg) {
-  document.getElementById('fingerMsgTitle').textContent =
-    msg.result === 'success' ? 'Xác thực thành công' : 'Không nhận diện được';
-  document.getElementById('fingerMsgSub').textContent =
-    msg.name || ('ID: ' + msg.id);
-}
+  if (state === 'scanning') {
+    avatar.className = 'face-avatar';
+    status.style.color = 'var(--accent)';
+    fill.style.background = 'var(--accent)';
+  } else if (state === 'granted') {
+    avatar.className = 'face-avatar success';
+    status.style.color = 'var(--green)';
+    fill.style.background = 'var(--green)';
+  } else if (state === 'denied') {
+    avatar.className = 'face-avatar fail';
+    status.style.color = 'var(--red)';
+    fill.style.background = 'var(--red)';
+  } else {
+    avatar.className = 'face-avatar';
+    status.style.color = 'var(--muted)';
+    fill.style.background = 'var(--muted)';
+  }
 
-// ════ MANUAL UNLOCK ════
-async function manualUnlock() {
-  try {
-    addLog('status', 'Yêu cầu mở thủ công...');
-    const res  = await fetch(`${API_BASE}/safe/unlock`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ safe_id: 'safe_001' })
-    });
-    const data = await res.json();
-    addLog(data.success ? 'status' : 'error', data.success ? 'Mở két thành công!' : 'Lỗi: ' + data.error);
-  } catch (err) {
-    addLog('error', 'Lỗi kết nối khi mở thủ công');
+  if (confValue !== null) {
+    const pct = Math.round(confValue * 100);
+    conf.textContent = pct > 0 ? `Độ chính xác: ${pct}%` : "—";
+    fill.style.width = pct + '%';
   }
 }
 
-// ════ RELOAD FACES ════
-async function reloadFaces() {
-  try {
-    addLog('info', 'Đang tải lại dữ liệu khuôn mặt...');
-    const res  = await fetch(`${API_BASE}/faces/reload`, { method: 'POST', headers: getAuthHeaders() });
-    const data = await res.json();
-    addLog(data.success ? 'status' : 'error', data.success ? 'Đã tải lại ' + (data.total || '?') + ' khuôn mặt' : 'Lỗi: ' + data.error);
-  } catch (_) {
-    addLog('error', 'Lỗi kết nối khi reload faces');
+// ════ COMMANDS (WebSocket) ════
+function manualUnlock() {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "manual_unlock" }));
+    addLog("status", "⚡ Yêu cầu mở thủ công gửi đi");
+  } else {
+    addLog("error", "Lỗi: WebSocket chưa kết nối");
   }
 }
 
-// ════ MODAL ENROLL ════
+function reloadFaces() {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "reload_faces" }));
+    addLog("info", "↺ Đang yêu cầu tải lại dữ liệu khuôn mặt...");
+  }
+}
+
+// ════ FINGERPRINT ════
+function handleFingerStatus(msg) {
+  const ev = msg.event;
+  if (ev === "enroll_waiting") {
+    setFingerStatus("waiting", "🫆", "ĐẶT NGÓN TAY LẦN 1", "Cảm biến đang chờ...");
+    addLog("info", "🫆 Cảm biến sẵn sàng — đặt ngón tay");
+  } else if (ev === "enroll_step1") {
+    setFingerStatus("waiting", "🫆", "ĐẶT LẠI LẦN 2", "Nhấc tay rồi đặt lại...");
+    addLog("info", "🫆 Vân tay lần 1 OK");
+  } else if (ev === "enroll_ok") {
+    document.getElementById("enrollBtn").disabled = false;
+    document.getElementById("fingerNameInput").value = "";
+    setFingerStatus("success", "✅", "ĐĂNG KÝ THÀNH CÔNG", `${msg.name} · ID #${msg.id}`);
+    addLog("status", `✅ Đăng ký vân tay: ${msg.name} (ID=${msg.id})`);
+    if (msg.db) renderFingerList(msg.db);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+  } else if (ev === "enroll_fail") {
+    document.getElementById("enrollBtn").disabled = false;
+    setFingerStatus("fail", "❌", "ĐĂNG KÝ THẤT BẠI", msg.reason || "Thử lại");
+    addLog("error", `❌ Đăng ký thất bại: ${msg.reason || ""}`);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+  } else if (ev === "verify_ok") {
+    const displayName = msg.name || `ID #${msg.id}`;
+    setFingerStatus("verify-ok", "✅", `ĐÚNG VÂN TAY`, displayName);
+    addLog("status", `✅ Xác thực OK: ${displayName}`);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 4000);
+  } else if (ev === "verify_fail") {
+    setFingerStatus("verify-fail", "❌", "SAI VÂN TAY", "Không khớp dữ liệu");
+    addLog("error", "❌ Xác thực vân tay thất bại");
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+  } else if (ev === "delete_ok") {
+    setFingerStatus("success", "🗑️", "ĐÃ XÓA VÂN TAY", `ID #${msg.id}`);
+    if (msg.db) renderFingerList(msg.db);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 2000);
+  }
+}
+
+function setFingerStatus(state, icon, title, sub) {
+  const box = document.getElementById("fingerStatusBox");
+  box.className = "finger-status-box" + (state ? " " + state : "");
+  document.getElementById("fingerIcon").textContent = icon;
+  document.getElementById("fingerMsgTitle").textContent = title;
+  document.getElementById("fingerMsgSub").textContent = sub;
+}
+
+function startEnroll() {
+  const name = document.getElementById("fingerNameInput").value.trim();
+  if (!name) { setFingerStatus("fail", "⚠️", "THIẾU TÊN", "Vui lòng nhập tên"); return; }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { setFingerStatus("fail", "⚠️", "MẤT KẾT NỐI", "WebSocket chưa kết nối"); return; }
+  
+  document.getElementById("enrollBtn").disabled = true;
+  setFingerStatus("waiting", "🫆", "ĐANG CHUẨN BỊ", `Đang đăng ký: ${name}`);
+  ws.send(JSON.stringify({ type: "finger_enroll", name }));
+  addLog("info", `🫆 Yêu cầu đăng ký vân tay: ${name}`);
+}
+
+function deleteFingerprint(id, name) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!confirm(`Xóa vân tay "${name}" (ID: ${id})?`)) return;
+  ws.send(JSON.stringify({ type: "finger_delete", id }));
+  addLog("info", `🗑️ Yêu cầu xóa vân tay ID=${id}`);
+}
+
+function renderFingerList(db) {
+  const list = document.getElementById("fingerList");
+  const count = Object.keys(db).length;
+  document.getElementById("fingerCount").textContent = count;
+  if (count === 0) { 
+    list.innerHTML = `<div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:12px;">Chưa có vân tay nào</div>`; 
+    return; 
+  }
+  list.innerHTML = Object.entries(db).map(([id, info]) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:0.75rem; background:rgba(0,0,0,0.2); margin-bottom: 6px;">
+      <div><span style="color:var(--accent); margin-right:8px; font-weight:bold;">#${id}</span> ${info.name}</div>
+      <button style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:0.9rem;" onclick="deleteFingerprint(${id},'${info.name}')">✕</button>
+    </div>
+  `).join("");
+}
+
+// ════ MODAL ENROLL KHUÔN MẶT ════
 function openFaceEnrollModal() {
   document.getElementById('faceEnrollModal').classList.add('open');
   resetEnrollState();
@@ -482,12 +633,9 @@ async function startEnrollCamera() {
   } catch (err) {
     btnStartCamera.disabled = false;
     enrollStatusBar.className = 'enroll-status-bar fail show';
-    if (err.name === 'NotAllowedError')
-      enrollStatusBar.textContent = '❌ Không có quyền camera — vui lòng cho phép trong trình duyệt';
-    else if (err.name === 'NotFoundError')
-      enrollStatusBar.textContent = '❌ Không tìm thấy camera trên thiết bị này';
-    else
-      enrollStatusBar.textContent = '❌ Lỗi camera: ' + err.message;
+    if (err.name === 'NotAllowedError') enrollStatusBar.textContent = '❌ Không có quyền camera — vui lòng cho phép trong trình duyệt';
+    else if (err.name === 'NotFoundError') enrollStatusBar.textContent = '❌ Không tìm thấy camera thiết bị';
+    else enrollStatusBar.textContent = '❌ Lỗi camera: ' + err.message;
   }
 }
 
@@ -546,16 +694,19 @@ async function saveEnrollPhoto() {
   btnSave.disabled = true;
   btnRetake.disabled = true;
   enrollStatusBar.className = 'enroll-status-bar loading show';
-  enrollStatusBar.textContent = '⏳ Đang lưu và cập nhật hệ thống...';
+  enrollStatusBar.textContent = '⏳ Đang lưu và trích xuất dữ liệu khuôn mặt...';
+  
   try {
     const formData = new FormData();
     formData.append('name', name);
+    // API Cũ sử dụng endpoint này để trích xuất dữ liệu
     formData.append('photo', enrollPhotoBlob, `${name}_${Date.now()}.jpg`);
-    const res = await fetch('/api/enroll-face', { method: 'POST', body: formData });
+    const res = await fetch('/api/register-owner', { method: 'POST', body: formData });
     const data = await res.json();
+    
     if (res.ok && data.success) {
       enrollStatusBar.className = 'enroll-status-bar ok show';
-      enrollStatusBar.textContent = `✅ Đã lưu ảnh cho "${name}" — hệ thống đã cập nhật (${data.total_people || '?'} người)`;
+      enrollStatusBar.textContent = `✅ Đã lưu ảnh cho "${name}"`;
       addLog('status', `📸 Đăng ký khuôn mặt: ${name}`);
       loadFaceDbList();
       setTimeout(() => {
@@ -581,19 +732,18 @@ async function loadFaceDbList() {
     const list = document.getElementById('faceDbList');
     document.getElementById('faceDbCount').textContent = `(${data.total})`;
     if (data.total === 0) {
-      list.innerHTML = `<div class="face-db-empty">Chưa có khuôn mặt nào trong DB</div>`;
+      list.innerHTML = `<div class="face-db-empty">Chưa có khuôn mặt nào trong hệ thống</div>`;
       return;
     }
     list.innerHTML = data.people.map(p => `
-      <div class="face-db-item">
-        <span class="face-db-item-name">👤 ${p.name}</span>
-        <span class="face-db-item-count">${p.photos} ảnh</span>
-        <button class="face-db-del-btn" onclick="deleteFaceFromDb('${p.folder}','${p.name}')">🗑️</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:0.75rem; background:rgba(0,0,0,0.2); margin-bottom: 6px;">
+        <span style="color:var(--text); font-weight:bold;">👤 ${p.name}</span>
+        <span style="color:var(--muted);">${p.photos} ảnh</span>
+        <button style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:0.9rem;" onclick="deleteFaceFromDb('${p.folder}','${p.name}')">🗑️</button>
       </div>
     `).join('');
   } catch (_) {
-    document.getElementById('faceDbList').innerHTML =
-      `<div class="face-db-empty" style="color:var(--red)">Lỗi tải danh sách</div>`;
+    document.getElementById('faceDbList').innerHTML = `<div class="face-db-empty" style="color:var(--red)">Lỗi tải danh sách</div>`;
   }
 }
 
@@ -602,8 +752,13 @@ async function deleteFaceFromDb(folder, name) {
   try {
     const res  = await fetch(`/api/face/${encodeURIComponent(folder)}`, { method: 'DELETE' });
     const data = await res.json();
-    if (data.success) { addLog('info', `🗑️ Đã xóa khuôn mặt: ${name}`); loadFaceDbList(); }
-  } catch (err) { alert('Lỗi xóa: ' + err.message); }
+    if (data.success) { 
+      addLog('info', `🗑️ Đã xóa khuôn mặt: ${name}`); 
+      loadFaceDbList();
+    }
+  } catch (err) { 
+    alert('Lỗi xóa: ' + err.message);
+  }
 }
 
 // Close modal on backdrop click
@@ -611,7 +766,7 @@ document.getElementById('faceEnrollModal').addEventListener('click', function(e)
   if (e.target === this) closeFaceEnrollModal();
 });
 
-// Start
+// Bắt đầu kết nối tự động
 connect();
 </script>
 </body>
