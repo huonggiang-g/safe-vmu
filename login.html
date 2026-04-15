@@ -8,12 +8,140 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="client_auth.js"></script>
+  <style>
+    .fp-overlay {
+      display:none; position:fixed; inset:0; z-index:999;
+      background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .fp-overlay.open { display:flex; }
+    .fp-modal {
+      background:var(--surface,#fff); border:1px solid var(--border,#e5e7eb);
+      border-radius:16px; width:100%; max-width:420px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.15);
+      animation:fpIn .25s cubic-bezier(.34,1.56,.64,1); overflow:hidden;
+    }
+    @keyframes fpIn { from{opacity:0;transform:scale(.93) translateY(12px)} to{opacity:1;transform:none} }
+    .fp-header {
+      padding:20px 24px 16px; border-bottom:1px solid var(--border,#e5e7eb);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .fp-title { font-size:1rem; font-weight:700; color:var(--text,#111); }
+    .fp-close {
+      width:30px; height:30px; background:var(--bg2,#f3f4f6);
+      border:1px solid var(--border,#e5e7eb); border-radius:8px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.9rem; color:#6b7280; transition:all .2s;
+    }
+    .fp-close:hover { background:#fee2e2; color:#dc2626; border-color:#fca5a5; }
+    .fp-body { padding:24px; }
+    .fp-step { display:none; }
+    .fp-step.active { display:block; }
+    .fp-progress {
+      display:flex; gap:6px; justify-content:center;
+      align-items:center; margin-bottom:22px;
+    }
+    .fp-dot {
+      width:8px; height:8px; border-radius:50%;
+      background:var(--border,#e5e7eb); transition:all .3s;
+    }
+    .fp-dot.active  { background:#2563eb; transform:scale(1.3); }
+    .fp-dot.done    { background:#16a34a; }
+    .fp-dot-line {
+      flex:1; height:2px; max-width:32px;
+      background:var(--border,#e5e7eb); transition:background .3s;
+    }
+    .fp-dot-line.done { background:#16a34a; }
+    .otp-row { display:flex; gap:8px; justify-content:center; margin:16px 0 8px; }
+    .otp-box {
+      width:46px; height:54px; text-align:center;
+      font-size:1.5rem; font-weight:700; font-family:'DM Mono',monospace;
+      border:2px solid var(--border,#e5e7eb); border-radius:10px;
+      background:var(--bg2,#f9fafb); color:var(--text,#111);
+      outline:none; transition:all .2s; -webkit-appearance:none;
+    }
+    .otp-box:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
+    .otp-box.filled { border-color:#2563eb; background:#eff4ff; }
+    .fp-cd { text-align:center; font-size:.8rem; color:#6b7280; margin-bottom:14px; }
+    .fp-cd.urgent { color:#dc2626; font-weight:600; }
+    .fp-resend { text-align:center; font-size:.82rem; color:#6b7280; margin-top:12px; }
+    .fp-resend a { color:#2563eb; cursor:pointer; font-weight:500; }
+    .fp-resend a:hover { text-decoration:underline; }
+    .fp-resend a.disabled { color:#9ca3af; pointer-events:none; }
+    .fp-alert {
+      padding:10px 14px; border-radius:8px; font-size:.82rem;
+      margin-bottom:14px; display:none; gap:8px; align-items:flex-start; line-height:1.5;
+    }
+    .fp-alert.show { display:flex; }
+    .fp-alert.error   { background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; }
+    .fp-alert.success { background:#f0fdf4; border:1px solid #86efac; color:#16a34a; }
+    .fp-alert.loading { background:#eff4ff; border:1px solid #93c5fd; color:#2563eb; }
+    .fp-desc {
+      font-size:.875rem; color:#6b7280; line-height:1.6;
+      margin-bottom:18px; text-align:center;
+    }
+    .fp-desc b { color:var(--text,#111); }
+    .fp-label { display:block; font-size:.8rem; font-weight:600; color:#6b7280; margin-bottom:6px; }
+    .fp-input {
+      width:100%; padding:11px 14px;
+      border:2px solid var(--border,#e5e7eb); border-radius:10px;
+      font-size:.9rem; font-family:'DM Sans',sans-serif;
+      background:var(--bg2,#f9fafb); color:var(--text,#111);
+      outline:none; margin-bottom:14px;
+      transition:border-color .2s, box-shadow .2s, background .2s;
+    }
+    .fp-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
+    .fp-input::placeholder { color:#9ca3af; }
+    .fp-pw-wrap { position:relative; margin-bottom:14px; }
+    .fp-pw-wrap .fp-input { margin-bottom:0; padding-right:44px; }
+    .fp-pw-eye {
+      position:absolute; right:12px; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer; color:#9ca3af;
+      font-size:1rem; transition:color .2s;
+    }
+    .fp-pw-eye:hover { color:#374151; }
+    .str-wrap { margin-bottom:14px; }
+    .str-head { display:flex; justify-content:space-between; font-size:.72rem; color:#6b7280; margin-bottom:5px; }
+    .str-track { height:4px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
+    .str-fill  { height:100%; border-radius:99px; transition:all .35s; width:0; }
+    .fp-btn {
+      width:100%; padding:11px; border-radius:10px; border:none;
+      font-size:.9rem; font-weight:600; font-family:'DM Sans',sans-serif;
+      cursor:pointer; transition:all .2s;
+    }
+    .fp-btn-primary { background:#2563eb; color:#fff; box-shadow:0 2px 8px rgba(37,99,235,.25); }
+    .fp-btn-primary:hover { background:#1d4ed8; transform:translateY(-1px); }
+    .fp-btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+    .fp-btn-ghost {
+      background:var(--bg2,#f3f4f6); border:1px solid var(--border,#e5e7eb); color:#6b7280;
+    }
+    .fp-btn-ghost:hover { background:var(--border,#e5e7eb); }
+    .fp-btn-row { display:flex; gap:10px; }
+    .fp-btn-row .fp-btn { flex:1; }
+    .fp-ok-icon {
+      display:block; font-size:3.5rem; text-align:center; margin-bottom:14px;
+      animation:popIn .45s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .fp-spin {
+      display:inline-block; width:14px; height:14px;
+      border:2px solid currentColor; border-top-color:transparent;
+      border-radius:50%; animation:spin .7s linear infinite;
+      vertical-align:middle; margin-right:6px;
+    }
+    /* Forgot link trong form login */
+    .forgot-link {
+      display:block; text-align:right; font-size:.8rem;
+      margin-top:5px; color:#2563eb; cursor:pointer; text-decoration:none;
+    }
+    .forgot-link:hover { text-decoration:underline; }
+  </style>
 </head>
 <body>
   <div class="auth-wrap">
     <div class="auth-card">
 
-      <!-- Logo -->
       <div class="auth-logo">
         <div class="auth-logo-icon">🔐</div>
         <div>
@@ -25,77 +153,379 @@
       <div class="auth-title">Chào mừng trở lại</div>
       <div class="auth-subtitle">Đăng nhập để truy cập hệ thống giám sát két sắt</div>
 
-      <!-- Message -->
       <div class="msg-box" id="msg"></div>
 
-      <!-- Form -->
       <div class="form-group">
         <label class="form-label">Email</label>
-        <input type="email" id="email" class="input-field" placeholder="admin@vmust.edu.vn" autocomplete="email">
+        <input type="email" id="email" class="input-field"
+               placeholder="admin@vmust.edu.vn" autocomplete="email">
       </div>
 
       <div class="form-group">
         <label class="form-label">Mật khẩu</label>
         <div style="position:relative;">
-          <input type="password" id="password" class="input-field" placeholder="••••••••" autocomplete="current-password"
-                 style="padding-right:44px;" onkeydown="if(event.key==='Enter') login()">
-          <button onclick="togglePw()" id="pwToggle"
-                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">
+          <input type="password" id="password" class="input-field" placeholder="••••••••"
+                 autocomplete="current-password" style="padding-right:44px;"
+                 onkeydown="if(event.key==='Enter') login()">
+          <button onclick="togglePw()"
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">
             👁
           </button>
         </div>
+        <a class="forgot-link" onclick="openFP()">Quên mật khẩu?</a>
       </div>
 
-      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:0.95rem;margin-top:4px;" onclick="login()">
+      <button class="btn btn-primary"
+              style="width:100%;padding:12px;font-size:.95rem;margin-top:4px;"
+              onclick="login()">
         Đăng nhập
       </button>
 
       <p class="auth-link">
         Chưa có tài khoản? <a href="register.html">Đăng ký ngay</a>
       </p>
+    </div>
+  </div>
 
+  <!-- ════════════ MODAL QUÊN MẬT KHẨU ════════════ -->
+  <div class="fp-overlay" id="fpOverlay" onclick="bgClose(event)">
+    <div class="fp-modal">
+
+      <div class="fp-header">
+        <div class="fp-title" id="fpTitle">🔑 Quên mật khẩu</div>
+        <button class="fp-close" onclick="closeFP()">✕</button>
+      </div>
+
+      <div class="fp-body">
+        <!-- Progress -->
+        <div class="fp-progress" id="fpProg">
+          <div class="fp-dot active" id="d1"></div>
+          <div class="fp-dot-line"   id="l12"></div>
+          <div class="fp-dot"        id="d2"></div>
+          <div class="fp-dot-line"   id="l23"></div>
+          <div class="fp-dot"        id="d3"></div>
+        </div>
+
+        <!-- Alert -->
+        <div class="fp-alert" id="fpAlert"></div>
+
+        <!-- Bước 1: Email -->
+        <div class="fp-step active" id="s1">
+          <div class="fp-desc">
+            Nhập email đã đăng ký.<br>
+            Mã <b>OTP 6 số</b> sẽ gửi đến hộp thư của bạn.
+          </div>
+          <label class="fp-label">Email</label>
+          <input class="fp-input" type="email" id="fpEmail"
+                 placeholder="Nhập email đã đăng ký..."
+                 onkeydown="if(event.key==='Enter') s1Send()"/>
+          <button class="fp-btn fp-btn-primary" id="b1" onclick="s1Send()">
+            📧 Gửi mã OTP
+          </button>
+        </div>
+
+        <!-- Bước 2: OTP -->
+        <div class="fp-step" id="s2">
+          <div class="fp-desc">
+            Nhập mã <b>6 số</b> đã gửi đến<br>
+            <b id="fpShowEmail"></b>
+          </div>
+          <div class="otp-row" id="otpRow">
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+          </div>
+          <div class="fp-cd" id="fpCd">⏱ Còn 5:00</div>
+          <div class="fp-btn-row">
+            <button class="fp-btn fp-btn-ghost" onclick="goS(1)">← Quay lại</button>
+            <button class="fp-btn fp-btn-primary" id="b2" onclick="s2Verify()">Xác nhận →</button>
+          </div>
+          <div class="fp-resend">
+            Không nhận được?
+            <a id="resendA" class="disabled" onclick="s2Resend()">Gửi lại</a>
+            <span id="resendT"></span>
+          </div>
+        </div>
+
+        <!-- Bước 3: Mật khẩu mới -->
+        <div class="fp-step" id="s3">
+          <div class="fp-desc">
+            Tạo mật khẩu mới cho<br><b id="fpShowEmail3"></b>
+          </div>
+          <label class="fp-label">Mật khẩu mới</label>
+          <div class="fp-pw-wrap">
+            <input type="password" class="fp-input" id="fp1"
+                   placeholder="Tối thiểu 8 ký tự" oninput="strBar(this.value)"/>
+            <button class="fp-pw-eye" onclick="eyeFp('fp1',this)">👁</button>
+          </div>
+          <div class="str-wrap" id="strWrap" style="display:none">
+            <div class="str-head">
+              <span>Độ mạnh</span><span id="strLbl"></span>
+            </div>
+            <div class="str-track"><div class="str-fill" id="strFill"></div></div>
+          </div>
+          <label class="fp-label">Xác nhận mật khẩu</label>
+          <div class="fp-pw-wrap">
+            <input type="password" class="fp-input" id="fp2"
+                   placeholder="Nhập lại mật khẩu"
+                   onkeydown="if(event.key==='Enter') s3Save()"/>
+            <button class="fp-pw-eye" onclick="eyeFp('fp2',this)">👁</button>
+          </div>
+          <button class="fp-btn fp-btn-primary" id="b3" onclick="s3Save()">
+            💾 Đặt lại mật khẩu
+          </button>
+        </div>
+
+        <!-- Thành công -->
+        <div class="fp-step" id="s4">
+          <span class="fp-ok-icon">🎉</span>
+          <div class="fp-desc" style="margin-bottom:20px">
+            <b style="font-size:1rem;color:#111">Đặt lại mật khẩu thành công!</b><br>
+            Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ.
+          </div>
+          <button class="fp-btn fp-btn-primary" onclick="closeFP()">Đăng nhập ngay →</button>
+        </div>
+
+      </div><!-- /fp-body -->
     </div>
   </div>
 
   <script>
+    /* ── ĐĂNG NHẬP ── */
     function togglePw() {
-      const pw = document.getElementById('password');
-      pw.type = pw.type === 'password' ? 'text' : 'password';
+      const p = document.getElementById('password');
+      p.type = p.type === 'password' ? 'text' : 'password';
     }
-
-    function showMsg(text, type) {
+    function showMsg(t, type) {
       const el = document.getElementById('msg');
-      el.textContent = text;
-      el.className = 'msg-box show ' + type;
+      el.textContent = t; el.className = 'msg-box show ' + type;
+    }
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const pw    = document.getElementById('password').value;
+      if (!email || !pw) { showMsg('Vui lòng nhập đầy đủ thông tin.', 'error'); return; }
+      showMsg('Đang xác thực...', 'loading');
+      try {
+        const r = await fetch(`${API_BASE}/auth/login`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email, password: pw })
+        });
+        const d = await r.json();
+        if (d.success) {
+          localStorage.setItem('safeToken', d.token);
+          localStorage.setItem('safeUser',  JSON.stringify(d.user));
+          localStorage.setItem('safeRoles', JSON.stringify(d.roles || {}));
+          showMsg('Xác thực thành công! Đang chuyển hướng...', 'success');
+          setTimeout(() => window.location.href = '/index.html', 800);
+        } else {
+          showMsg(d.error || 'Sai email hoặc mật khẩu.', 'error');
+        }
+      } catch { showMsg('Lỗi kết nối máy chủ!', 'error'); }
     }
 
-    async function login() {
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      if (!email || !password) { showMsg('Vui lòng nhập đầy đủ thông tin.', 'error'); return; }
+    /* ══════════════════════════════════════════════
+       QUÊN MẬT KHẨU
+    ══════════════════════════════════════════════ */
+    let _em = '', _otp = '';
+    let _cd = null, _rs = null;
 
-      showMsg('Đang xác thực...', 'loading');
+    function openFP() {
+      document.getElementById('fpOverlay').classList.add('open');
+      goS(1);
+      setTimeout(() => document.getElementById('fpEmail')?.focus(), 150);
+    }
+    function closeFP() {
+      document.getElementById('fpOverlay').classList.remove('open');
+      clearInterval(_cd); clearInterval(_rs);
+    }
+    function bgClose(e) { if (e.target.id === 'fpOverlay') closeFP(); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFP(); });
 
+    // Chuyển bước + cập nhật dots
+    function goS(n) {
+      document.querySelectorAll('.fp-step').forEach(el => el.classList.remove('active'));
+      document.getElementById('s' + n).classList.add('active');
+      clrAlert();
+      const titles = { 1:'🔑 Quên mật khẩu', 2:'✉️ Xác nhận OTP', 3:'🔒 Mật khẩu mới', 4:'✅ Hoàn tất' };
+      document.getElementById('fpTitle').textContent = titles[n];
+      [1,2,3].forEach(i => {
+        document.getElementById('d'+i).className = 'fp-dot'+(i<n?' done':i===n?' active':'');
+      });
+      document.getElementById('l12').className = 'fp-dot-line'+(n>1?' done':'');
+      document.getElementById('l23').className = 'fp-dot-line'+(n>2?' done':'');
+      document.getElementById('fpProg').style.display = n === 4 ? 'none' : 'flex';
+    }
+
+    function showAlert(t, type) {
+      const el = document.getElementById('fpAlert');
+      el.innerHTML = `<span>${{error:'❌',success:'✅',loading:'⏳'}[type]||'ℹ️'}</span><span>${t}</span>`;
+      el.className = 'fp-alert show ' + type;
+    }
+    function clrAlert() { document.getElementById('fpAlert').className = 'fp-alert'; }
+
+    function setBL(id, t) {
+      const b = document.getElementById(id);
+      b._o = b.innerHTML; b.disabled = true;
+      b.innerHTML = `<span class="fp-spin"></span>${t}`;
+    }
+    function rstBtn(id) {
+      const b = document.getElementById(id);
+      b.disabled = false; if (b._o) b.innerHTML = b._o;
+    }
+
+    /* Bước 1 */
+    async function s1Send() {
+      _em = document.getElementById('fpEmail').value.trim();
+      if (!_em) return showAlert('Vui lòng nhập email', 'error');
+      if (!/\S+@\S+\.\S+/.test(_em)) return showAlert('Email không đúng định dạng', 'error');
+      setBL('b1', 'Đang gửi...'); clrAlert();
       try {
-        const res  = await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+        const r = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email: _em })
         });
-        const data = await res.json();
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'Gửi OTP thất bại');
+        document.getElementById('fpShowEmail').textContent = _em;
+        goS(2); initOtp(); startCd(); startRs(60);
+        setTimeout(() => document.querySelector('#otpRow .otp-box')?.focus(), 100);
+      } catch(err) { showAlert(err.message, 'error'); }
+      finally { rstBtn('b1'); }
+    }
 
-        if (data.success) {
-          localStorage.setItem('safeToken', data.token);
-          localStorage.setItem('safeUser',  JSON.stringify(data.user));
-          localStorage.setItem('safeRoles', JSON.stringify(data.roles || {}));
-          showMsg('Xác thực thành công! Đang chuyển hướng...', 'success');
-          setTimeout(() => { window.location.href = '/index.html'; }, 800);
-        } else {
-          showMsg(data.error || 'Sai email hoặc mật khẩu.', 'error');
+    /* OTP boxes */
+    function initOtp() {
+      const row = document.getElementById('otpRow');
+      const nr  = row.cloneNode(true);
+      row.parentNode.replaceChild(nr, row);
+      nr.querySelectorAll('.otp-box').forEach(b => { b.value = ''; b.classList.remove('filled'); });
+      nr.querySelectorAll('.otp-box').forEach((b, i, all) => {
+        b.addEventListener('input', e => {
+          const v = e.target.value.replace(/\D/,'');
+          b.value = v.slice(-1); b.classList.toggle('filled', !!b.value);
+          if (b.value && i < all.length-1) all[i+1].focus();
+          _otp = [...nr.querySelectorAll('.otp-box')].map(x=>x.value).join('');
+        });
+        b.addEventListener('keydown', e => {
+          if (e.key==='Backspace' && !b.value && i>0) all[i-1].focus();
+          if (e.key==='Enter') s2Verify();
+        });
+        b.addEventListener('paste', e => {
+          const p = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+          nr.querySelectorAll('.otp-box').forEach((x,j) => {
+            x.value = p[j]||''; x.classList.toggle('filled', !!x.value);
+          });
+          _otp = p; e.preventDefault();
+        });
+      });
+    }
+
+    function startCd() {
+      clearInterval(_cd);
+      let t = 300;
+      const el = document.getElementById('fpCd');
+      _cd = setInterval(() => {
+        el.textContent = `⏱ Còn ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;
+        el.className   = 'fp-cd' + (t<=60?' urgent':'');
+        if (t-- <= 0) {
+          clearInterval(_cd);
+          el.textContent='⛔ Mã OTP đã hết hạn'; el.className='fp-cd urgent';
+          showAlert('Mã OTP đã hết hạn. Bấm "Gửi lại" để nhận mã mới.','error');
         }
-      } catch (err) {
-        showMsg('Lỗi kết nối máy chủ!', 'error');
+      }, 1000);
+    }
+
+    function startRs(sec) {
+      clearInterval(_rs);
+      const a = document.getElementById('resendA');
+      const t = document.getElementById('resendT');
+      a.classList.add('disabled'); let s = sec;
+      _rs = setInterval(() => {
+        t.textContent = ` (${s}s)`;
+        if (--s < 0) { clearInterval(_rs); a.classList.remove('disabled'); t.textContent=''; }
+      }, 1000);
+    }
+
+    async function s2Resend() {
+      if (document.getElementById('resendA').classList.contains('disabled')) return;
+      showAlert('Đang gửi lại mã OTP...','loading');
+      try {
+        const r = await fetch(`${API_BASE}/api/auth/forgot-password`,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email:_em })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        showAlert('Đã gửi lại mã OTP mới!','success');
+        initOtp(); startCd(); startRs(60);
+        setTimeout(() => document.querySelector('#otpRow .otp-box')?.focus(), 100);
+      } catch(err) { showAlert(err.message,'error'); }
+    }
+
+    /* Bước 2 */
+    function s2Verify() {
+      const code = [...document.querySelectorAll('#otpRow .otp-box')].map(b=>b.value).join('');
+      if (code.length!==6) return showAlert('Vui lòng nhập đủ 6 số OTP','error');
+      _otp = code; clearInterval(_cd);
+      document.getElementById('fpShowEmail3').textContent = _em;
+      goS(3);
+      setTimeout(() => document.getElementById('fp1')?.focus(), 100);
+    }
+
+    /* Strength bar */
+    function strBar(pw) {
+      const w = document.getElementById('strWrap');
+      const f = document.getElementById('strFill');
+      const l = document.getElementById('strLbl');
+      if (!pw) { w.style.display='none'; return; }
+      w.style.display = 'block';
+      let sc = 0;
+      if (pw.length>=8)          sc++;
+      if (pw.length>=12)         sc++;
+      if (/[A-Z]/.test(pw))      sc++;
+      if (/[0-9]/.test(pw))      sc++;
+      if (/[^A-Za-z0-9]/.test(pw)) sc++;
+      const lv = [
+        {w:'20%',c:'#ef4444',t:'Rất yếu'},
+        {w:'40%',c:'#f97316',t:'Yếu'},
+        {w:'60%',c:'#eab308',t:'Trung bình'},
+        {w:'80%',c:'#22c55e',t:'Mạnh'},
+        {w:'100%',c:'#16a34a',t:'Rất mạnh'},
+      ][Math.max(0, Math.min(sc-1,4))];
+      f.style.width=lv.w; f.style.background=lv.c;
+      l.textContent=lv.t; l.style.color=lv.c;
+    }
+
+    function eyeFp(id, btn) {
+      const el = document.getElementById(id);
+      el.type  = el.type==='password' ? 'text' : 'password';
+      btn.textContent = el.type==='password' ? '👁' : '🙈';
+    }
+
+    /* Bước 3 */
+    async function s3Save() {
+      const pw  = document.getElementById('fp1').value;
+      const pw2 = document.getElementById('fp2').value;
+      if (pw.length<8)   return showAlert('Mật khẩu tối thiểu 8 ký tự','error');
+      if (pw!==pw2)      return showAlert('Mật khẩu xác nhận không khớp','error');
+      setBL('b3','Đang lưu...'); clrAlert();
+      try {
+        const r = await fetch(`${API_BASE}/api/auth/reset-password`,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email:_em, otp:_otp, new_password:pw })
+        });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error||'Đặt lại mật khẩu thất bại');
+        goS(4);
+      } catch(err) {
+        showAlert(err.message,'error');
+        if (/otp|hết hạn/i.test(err.message)) setTimeout(()=>goS(2),1200);
       }
+      finally { rstBtn('b3'); }
     }
   </script>
 </body>
