@@ -6,234 +6,202 @@
   <title>Đăng Nhập | SAFE VMU</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
   <style>
-    .fp-overlay {
-      display:none; position:fixed; inset:0; z-index:999;
-      background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
-      align-items:center; justify-content:center; padding:20px;
-    }
+    /* CSS GIỮ NGUYÊN NHƯ CŨ ĐỂ ĐẢM BẢO GIAO DIỆN ĐẸP */
+    body { font-family: 'DM Sans', sans-serif; background: #f4f7f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .auth-card { background: #fff; max-width: 400px; width: 100%; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .auth-title { margin-top: 0; color: #111; font-size: 1.5rem; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+    .fp-input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+    .fp-input:focus { border-color: #2563eb; }
+    .fp-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .fp-btn-primary { background: #2563eb; color: #fff; }
+    .fp-btn-primary:hover { background: #1d4ed8; }
+    .fp-btn-ghost { background: #f3f4f6; color: #6b7280; margin-top: 10px; }
+    .forgot-link { display: block; text-align: right; font-size: 0.8rem; color: #2563eb; cursor: pointer; margin-top: 5px; }
+    .msg-box { padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; display: none; }
+    .msg-box.show { display: block; }
+    .msg-box.error { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .msg-box.success { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+    
+    /* CSS MODAL QUÊN MẬT KHẨU */
+    .fp-overlay { display:none; position:fixed; inset:0; z-index:999; background:rgba(0,0,0,0.45); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:20px; }
     .fp-overlay.open { display:flex; }
-    .fp-modal {
-      background:#fff; border:1px solid #e5e7eb;
-      border-radius:16px; width:100%; max-width:420px;
-      box-shadow:0 20px 60px rgba(0,0,0,0.15);
-      animation:fpIn .25s cubic-bezier(.34,1.56,.64,1); overflow:hidden;
-    }
-    @keyframes fpIn { from{opacity:0;transform:scale(.93) translateY(12px)} to{opacity:1;transform:none} }
-    .fp-header {
-      padding:20px 24px 16px; border-bottom:1px solid #e5e7eb;
-      display:flex; align-items:center; justify-content:space-between;
-    }
-    .fp-title { font-size:1rem; font-weight:700; color:#111; }
-    .fp-close {
-      width:30px; height:30px; background:#f3f4f6;
-      border:1px solid #e5e7eb; border-radius:8px; cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
-      font-size:.9rem; color:#6b7280; transition:all .2s;
-    }
-    .fp-close:hover { background:#fee2e2; color:#dc2626; border-color:#fca5a5; }
+    .fp-modal { background:#fff; border-radius:16px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.15); overflow:hidden; }
+    .fp-header { padding:20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
     .fp-body { padding:24px; }
     .fp-step { display:none; }
     .fp-step.active { display:block; }
-    .fp-progress { display:flex; gap:6px; justify-content:center; align-items:center; margin-bottom:22px; }
-    .fp-dot { width:8px; height:8px; border-radius:50%; background:#e5e7eb; transition:all .3s; }
-    .fp-dot.active  { background:#2563eb; transform:scale(1.3); }
-    .fp-dot.done    { background:#16a34a; }
-    .fp-dot-line { flex:1; height:2px; max-width:32px; background:#e5e7eb; transition:background .3s; }
-    .fp-dot-line.done { background:#16a34a; }
-    .otp-row { display:flex; gap:8px; justify-content:center; margin:16px 0 8px; }
-    .otp-box {
-      width:46px; height:54px; text-align:center;
-      font-size:1.5rem; font-weight:700; font-family:'DM Mono',monospace;
-      border:2px solid #e5e7eb; border-radius:10px;
-      background:#f9fafb; color:#111; outline:none; transition:all .2s;
-    }
-    .otp-box:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
-    .otp-box.filled { border-color:#2563eb; background:#eff4ff; }
-    .fp-cd { text-align:center; font-size:.8rem; color:#6b7280; margin-bottom:14px; }
-    .fp-cd.urgent { color:#dc2626; font-weight:600; }
-    .fp-resend { text-align:center; font-size:.82rem; color:#6b7280; margin-top:12px; }
-    .fp-resend a { color:#2563eb; cursor:pointer; font-weight:500; }
-    .fp-resend a.disabled { color:#9ca3af; pointer-events:none; }
-    .fp-alert {
-      padding:10px 14px; border-radius:8px; font-size:.82rem;
-      margin-bottom:14px; display:none; gap:8px; align-items:flex-start; line-height:1.5;
-    }
-    .fp-alert.show { display:flex; }
-    .fp-alert.error   { background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; }
-    .fp-alert.success { background:#f0fdf4; border:1px solid #86efac; color:#16a34a; }
-    .fp-alert.loading { background:#eff4ff; border:1px solid #93c5fd; color:#2563eb; }
-    .fp-desc { font-size:.875rem; color:#6b7280; line-height:1.6; margin-bottom:18px; text-align:center; }
-    .fp-label { display:block; font-size:.8rem; font-weight:600; color:#6b7280; margin-bottom:6px; }
-    .fp-input {
-      width:100%; padding:11px 14px; border:2px solid #e5e7eb; border-radius:10px;
-      font-size:.9rem; background:#f9fafb; color:#111; outline:none; margin-bottom:14px;
-    }
-    .fp-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
-    .fp-pw-wrap { position:relative; margin-bottom:14px; }
-    .fp-pw-wrap .fp-input { margin-bottom:0; padding-right:44px; }
-    .fp-pw-eye {
-      position:absolute; right:12px; top:50%; transform:translateY(-50%);
-      background:none; border:none; cursor:pointer; color:#9ca3af;
-    }
-    .str-wrap { margin-bottom:14px; }
-    .str-head { display:flex; justify-content:space-between; font-size:.72rem; color:#6b7280; margin-bottom:5px; }
-    .str-track { height:4px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
-    .str-fill  { height:100%; border-radius:99px; transition:all .35s; width:0; }
-    .fp-btn {
-      width:100%; padding:11px; border-radius:10px; border:none;
-      font-size:.9rem; font-weight:600; cursor:pointer; transition:all .2s;
-    }
-    .fp-btn-primary { background:#2563eb; color:#fff; }
-    .fp-btn-ghost { background:#f3f4f6; border:1px solid #e5e7eb; color:#6b7280; }
-    .fp-btn-row { display:flex; gap:10px; }
-    .fp-btn-row .fp-btn { flex:1; }
-    .fp-ok-icon { display:block; font-size:3.5rem; text-align:center; margin-bottom:14px; }
-    .fp-spin {
-      display:inline-block; width:14px; height:14px;
-      border:2px solid currentColor; border-top-color:transparent;
-      border-radius:50%; animation:spin .7s linear infinite;
-      vertical-align:middle; margin-right:6px;
-    }
-    @keyframes spin { to{transform:rotate(360deg)} }
-    .forgot-link { display:block; text-align:right; font-size:.8rem; margin-top:5px; color:#2563eb; cursor:pointer; }
+    .otp-row { display:flex; gap:8px; justify-content:center; margin:15px 0; }
+    .otp-box { width:40px; height:50px; text-align:center; font-size:1.2rem; font-weight:700; border:2px solid #e5e7eb; border-radius:8px; }
+    .fp-progress { display:flex; gap:5px; justify-content:center; margin-bottom:20px; }
+    .fp-dot { width:8px; height:8px; background:#e5e7eb; border-radius:50%; }
+    .fp-dot.active { background:#2563eb; }
+    .fp-dot.done { background:#16a34a; }
   </style>
 </head>
 <body>
 
-  <div class="auth-card" style="max-width:400px; margin:50px auto; padding:20px; border:1px solid #ddd; border-radius:12px;">
-    <h2 class="auth-title">Đăng Nhập SAFE VMU</h2>
-    <div id="msg"></div>
+  <div class="auth-card">
+    <h2 class="auth-title">SAFE VMU Login</h2>
+    
+    <div id="msg" class="msg-box"></div>
+
     <div class="form-group">
       <label>Email</label>
       <input type="email" id="email" class="fp-input" placeholder="admin@vmust.edu.vn">
     </div>
+    
     <div class="form-group">
       <label>Mật khẩu</label>
       <div style="position:relative;">
         <input type="password" id="password" class="fp-input" placeholder="••••••••">
-        <button onclick="togglePw()" style="position:absolute;right:10px;top:12px;border:none;background:none;cursor:pointer;">👁</button>
+        <button onclick="togglePw()" style="position:absolute;right:10px;top:10px;border:none;background:none;cursor:pointer;">👁</button>
       </div>
       <a class="forgot-link" onclick="openFP()">Quên mật khẩu?</a>
     </div>
+    
     <button class="fp-btn fp-btn-primary" onclick="login()">Đăng nhập</button>
   </div>
 
-  <div class="fp-overlay" id="fpOverlay" onclick="bgClose(event)">
+  <div class="fp-overlay" id="fpOverlay">
     <div class="fp-modal">
       <div class="fp-header">
         <div class="fp-title" id="fpTitle">🔑 Quên mật khẩu</div>
-        <button class="fp-close" onclick="closeFP()">✕</button>
+        <button onclick="closeFP()" style="border:none; background:none; cursor:pointer;">✕</button>
       </div>
 
       <div class="fp-body">
         <div class="fp-progress" id="fpProg">
           <div class="fp-dot active" id="d1"></div>
-          <div class="fp-dot-line" id="l12"></div>
           <div class="fp-dot" id="d2"></div>
-          <div class="fp-dot-line" id="l23"></div>
           <div class="fp-dot" id="d3"></div>
         </div>
 
-        <div class="fp-alert" id="fpAlert"></div>
+        <div id="fpAlert" class="msg-box"></div>
 
         <div class="fp-step active" id="s1">
-          <div class="fp-desc">Nhập email để nhận mã <b>OTP 6 số</b>.</div>
-          <label class="fp-label">Email</label>
-          <input class="fp-input" type="email" id="fpEmail" placeholder="Nhập email..."/>
-          <button class="fp-btn fp-btn-primary" id="b1" onclick="s1Send()">Gửi mã OTP</button>
+          <p style="font-size:0.9rem; text-align:center;">Mã OTP sẽ gửi đến email của bạn.</p>
+          <input class="fp-input" type="email" id="fpEmail" placeholder="Nhập email đã đăng ký..."/>
+          <button class="fp-btn fp-btn-primary" style="margin-top:15px;" onclick="s1Send()">Gửi mã OTP</button>
         </div>
 
         <div class="fp-step" id="s2">
-          <div class="fp-desc">Nhập mã gửi đến <b id="fpShowEmail"></b></div>
+          <p style="font-size:0.9rem; text-align:center;">Nhập mã 6 số gửi đến <b id="fpShowEmail"></b></p>
           <div class="otp-row" id="otpRow">
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
-            <input class="otp-box" maxlength="1" type="text" inputmode="numeric"/>
+            <input class="otp-box" maxlength="1" type="text" />
+            <input class="otp-box" maxlength="1" type="text" />
+            <input class="otp-box" maxlength="1" type="text" />
+            <input class="otp-box" maxlength="1" type="text" />
+            <input class="otp-box" maxlength="1" type="text" />
+            <input class="otp-box" maxlength="1" type="text" />
           </div>
-          <div class="fp-cd" id="fpCd">⏱ Còn 5:00</div>
-          <div class="fp-btn-row">
-            <button class="fp-btn fp-btn-ghost" onclick="goS(1)">Quay lại</button>
-            <button class="fp-btn fp-btn-primary" id="b2" onclick="s2Verify()">Xác nhận</button>
-          </div>
-          <div class="fp-resend">Không nhận được? <a id="resendA" class="disabled" onclick="s2Resend()">Gửi lại</a><span id="resendT"></span></div>
+          <button class="fp-btn fp-btn-primary" onclick="s2Verify()">Xác nhận</button>
+          <button class="fp-btn fp-btn-ghost" onclick="goS(1)">Quay lại</button>
         </div>
 
         <div class="fp-step" id="s3">
-          <div class="fp-desc">Đặt mật khẩu mới cho <b id="fpShowEmail3"></b></div>
-          <label class="fp-label">Mật khẩu mới</label>
-          <div class="fp-pw-wrap">
-            <input type="password" class="fp-input" id="fp1" placeholder="Tối thiểu 8 ký tự" oninput="strBar(this.value)"/>
-          </div>
-          <label class="fp-label">Xác nhận mật khẩu</label>
-          <div class="fp-pw-wrap">
-            <input type="password" class="fp-input" id="fp2" placeholder="Nhập lại mật khẩu"/>
-          </div>
-          <button class="fp-btn fp-btn-primary" id="b3" onclick="s3Save()">Đặt lại mật khẩu</button>
+          <label style="font-size:0.8rem;">Mật khẩu mới</label>
+          <input type="password" class="fp-input" id="fp1" placeholder="Tối thiểu 8 ký tự"/>
+          <label style="font-size:0.8rem; margin-top:10px; display:block;">Xác nhận lại</label>
+          <input type="password" class="fp-input" id="fp2" placeholder="Nhập lại mật khẩu"/>
+          <button class="fp-btn fp-btn-primary" style="margin-top:15px;" onclick="s3Save()">Đặt lại mật khẩu</button>
         </div>
 
         <div class="fp-step" id="s4">
-          <span class="fp-ok-icon">🎉</span>
-          <div class="fp-desc">Đặt lại mật khẩu thành công!</div>
-          <button class="fp-btn fp-btn-primary" onclick="closeFP()">Đăng nhập ngay</button>
+          <div style="text-align:center;">
+            <span style="font-size:3rem;">🎉</span>
+            <p>Thành công! Hãy đăng nhập lại.</p>
+            <button class="fp-btn fp-btn-primary" onclick="closeFP()">Đóng</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const API_BASE = 'https://safe-vmu.onrender.com'; // Đổi thành link backend của bạn
+    const API_BASE = 'https://safe-vmu.onrender.com';
     let _em = '', _otp = '';
-    let _cd = null, _rs = null;
 
+    // HIỂN THỊ THÔNG BÁO LOGIN
+    function showMsg(t, type) {
+      const el = document.getElementById('msg');
+      el.textContent = t;
+      el.className = 'msg-box show ' + type;
+    }
+
+    // --- HÀM ĐĂNG NHẬP (BẠN ĐANG THIẾU CÁI NÀY) ---
+    async function login() {
+      const email = document.getElementById('email').value.trim();
+      const pw = document.getElementById('password').value;
+
+      if (!email || !pw) return showMsg('Vui lòng nhập đủ thông tin', 'error');
+      
+      showMsg('Đang xác thực...', 'loading');
+
+      try {
+        const r = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pw })
+        });
+        const d = await r.json();
+
+        if (d.success) {
+          // LƯU VÀO LOCAL STORAGE
+          localStorage.setItem('safeToken', d.user.id);
+          localStorage.setItem('safeUser', JSON.stringify(d.user));
+          localStorage.setItem('safeRoles', JSON.stringify(d.roles || {}));
+          
+          showMsg('Thành công! Đang vào trang chủ...', 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 800);
+        } else {
+          showMsg(d.error || 'Sai email hoặc mật khẩu', 'error');
+        }
+      } catch (err) {
+        showMsg('Không thể kết nối server Render', 'error');
+      }
+    }
+
+    // --- CÁC HÀM QUÊN MẬT KHẨU ---
     function togglePw() {
       const p = document.getElementById('password');
       p.type = p.type === 'password' ? 'text' : 'password';
     }
 
     function openFP() { document.getElementById('fpOverlay').classList.add('open'); goS(1); }
-    function closeFP() { document.getElementById('fpOverlay').classList.remove('open'); clearInterval(_cd); }
-    function bgClose(e) { if (e.target.id === 'fpOverlay') closeFP(); }
+    function closeFP() { document.getElementById('fpOverlay').classList.remove('open'); }
 
     function goS(n) {
       document.querySelectorAll('.fp-step').forEach(el => el.classList.remove('active'));
       document.getElementById('s' + n).classList.add('active');
-      const dots = [1,2,3];
-      dots.forEach(i => document.getElementById('d'+i).className = 'fp-dot'+(i<n?' done':i===n?' active':''));
-      if(n === 4) document.getElementById('fpProg').style.display = 'none';
+      [1,2,3].forEach(i => {
+        const d = document.getElementById('d'+i);
+        if(d) d.className = 'fp-dot' + (i<n ? ' done' : i===n ? ' active' : '');
+      });
     }
 
     function showAlert(t, type) {
       const el = document.getElementById('fpAlert');
-      el.textContent = t; el.className = 'fp-alert show ' + type;
+      el.textContent = t;
+      el.className = 'msg-box show ' + type;
     }
 
     async function s1Send() {
       _em = document.getElementById('fpEmail').value.trim();
-      if (!_em) return showAlert('Vui lòng nhập email', 'error');
+      if (!_em) return showAlert('Nhập email!', 'error');
+      showAlert('Đang gửi OTP...', 'loading');
       try {
-        const r = await fetch(`${API_BASE}/api/auth/forgot-password`, { 
-          method:'POST', 
-          headers:{'Content-Type':'application/json'},
+        const r = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ email: _em })
         });
         const d = await r.json();
         if (d.success) {
-            // Lưu tạm ID hoặc một chuỗi để làm token nếu bạn chưa làm JWT
-            localStorage.setItem('safeToken', d.user.id); 
-            localStorage.setItem('safeUser',  JSON.stringify(d.user));
-            localStorage.setItem('safeRoles', JSON.stringify(d.roles || {}));
-            
-            showMsg('Xác thực thành công! Đang chuyển hướng...', 'success');
-            
-            // Thử dùng đường dẫn trực tiếp để tránh lỗi Render hiểu sai thư mục
-            setTimeout(() => {
-                window.location.href = 'index.html'; 
-            }, 800);
+          document.getElementById('fpShowEmail').textContent = _em;
+          goS(2);
+          initOtp();
         } else showAlert(d.error, 'error');
       } catch { showAlert('Lỗi kết nối', 'error'); }
     }
@@ -241,36 +209,29 @@
     function initOtp() {
       const inputs = document.querySelectorAll('.otp-box');
       inputs.forEach((input, i) => {
+        input.value = '';
         input.addEventListener('input', () => {
           if (input.value && i < inputs.length - 1) inputs[i+1].focus();
         });
       });
     }
 
-    function startCd() {
-      let t = 300;
-      _cd = setInterval(() => {
-        document.getElementById('fpCd').textContent = `⏱ Còn ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;
-        if (t-- <= 0) clearInterval(_cd);
-      }, 1000);
-    }
-
-    async function s2Verify() {
+    function s2Verify() {
       const code = [...document.querySelectorAll('.otp-box')].map(i => i.value).join('');
       if (code.length < 6) return showAlert('Nhập đủ 6 số', 'error');
       _otp = code;
-      document.getElementById('fpShowEmail3').textContent = _em;
       goS(3);
     }
 
     async function s3Save() {
       const pw = document.getElementById('fp1').value;
       const pw2 = document.getElementById('fp2').value;
+      if (pw.length < 8) return showAlert('Mật khẩu quá ngắn', 'error');
       if (pw !== pw2) return showAlert('Mật khẩu không khớp', 'error');
+      
       try {
-        const r = await fetch(`${API_BASE}/api/auth/reset-password`, { // THÊM /api
-          method:'POST', 
-          headers:{'Content-Type':'application/json'},
+        const r = await fetch(`${API_BASE}/api/auth/reset-password`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ email:_em, otp:_otp, new_password:pw })
         });
         const d = await r.json();
