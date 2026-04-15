@@ -223,8 +223,17 @@
         });
         const d = await r.json();
         if (d.success) {
-          document.getElementById('fpShowEmail').textContent = _em;
-          goS(2); initOtp(); startCd();
+            // Lưu tạm ID hoặc một chuỗi để làm token nếu bạn chưa làm JWT
+            localStorage.setItem('safeToken', d.user.id); 
+            localStorage.setItem('safeUser',  JSON.stringify(d.user));
+            localStorage.setItem('safeRoles', JSON.stringify(d.roles || {}));
+            
+            showMsg('Xác thực thành công! Đang chuyển hướng...', 'success');
+            
+            // Thử dùng đường dẫn trực tiếp để tránh lỗi Render hiểu sai thư mục
+            setTimeout(() => {
+                window.location.href = 'index.html'; 
+            }, 800);
         } else showAlert(d.error, 'error');
       } catch { showAlert('Lỗi kết nối', 'error'); }
     }
