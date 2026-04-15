@@ -1,4 +1,4 @@
-const API_BASE = "https://safe-vmu.onrender.com/api"; 
+const API_BASE = "/api"; 
 
 const savedToken = localStorage.getItem('safeToken');
 const savedUser = localStorage.getItem('safeUser');
