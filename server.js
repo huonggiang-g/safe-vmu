@@ -254,6 +254,54 @@ const upload = multer({
           res.status(500).json({ success: false, error: "Lỗi máy chủ khi cập nhật" });
       }
   });
+    // ==========================================
+  // API: CẬP NHẬT LẠI KHUÔN MẶT (CHỤP LẠI)
+  // ==========================================
+  app.post('/api/auth/update-face', upload.single('photo'), async (req, res) => {
+      try {
+          const user_id = req.body.user_id;
+          if (!user_id || !req.file) {
+              return res.status(400).json({ success: false, error: "Thiếu thông tin hoặc ảnh" });
+          }
+
+          console.log(`[FACE] Đang trích xuất Vector mới cho user ID: ${user_id}...`);
+          const b64Image = req.file.buffer.toString("base64");
+          
+          // Gọi AI lấy Vector mới
+          const extractRes = await fetch(FACE_EXTRACT_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+              body: JSON.stringify({ image: b64Image }),
+          });
+          const extractData = await extractRes.json();
+          
+          if (!extractData.success) {
+              throw new Error("Không nhận diện được khuôn mặt. Vui lòng chụp rõ hơn.");
+          }
+
+          // Lưu Vector mới vào Supabase
+          const { error: updateError } = await supabase
+              .from('accounts')
+              .update({ face_vector: extractData.vector })
+              .eq('id', user_id);
+
+          if (updateError) throw updateError;
+
+          // Lưu file ảnh dự phòng
+          const personDir = path.join(DATA_FACE_DIR, `user_${user_id}`);
+          if (!fs.existsSync(personDir)) fs.mkdirSync(personDir, { recursive: true });
+          fs.writeFileSync(path.join(personDir, `${Date.now()}.jpg`), req.file.buffer);
+
+          // Cập nhật lại bộ nhớ AI ngầm
+          try { await fetch(FACE_RELOAD_URL, { method: "POST", headers: { "ngrok-skip-browser-warning": "true" } }); } catch(e) {}
+
+          res.json({ success: true, message: "Đã cập nhật dữ liệu khuôn mặt thành công!" });
+
+      } catch (err) {
+          console.error("Lỗi cập nhật khuôn mặt:", err);
+          res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
+      }
+  });
   // ==========================================
   // API: ĐẶT LẠI MẬT KHẨU TÀI KHOẢN
   // ==========================================
