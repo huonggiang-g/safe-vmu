@@ -1,96 +1,245 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Lịch Sử Két Sắt | SAFE VMU</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="client_auth.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch Sử Hoạt Động | SAFE VMU</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="client_auth.js"></script>
 </head>
 <body>
-    <nav>
-        <div class="nav-links">
-            <a href="index.html">Trang chủ Két</a>
-            <a href="history.html" class="active">Lịch sử</a>
-            <a href="#">Tài khoản</a>
-        </div>
-        <div class="nav-user">
-            <span id="userNameDisplay">User</span> | 
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.7rem;" onclick="doLogout()">LOGOUT</button>
-        </div>
-    </nav>
 
-    <div class="container">
-        <h2>NHẬT KÝ HOẠT ĐỘNG <span id="safeIdDisplay" style="color: var(--accent); font-size: 1rem;"></span></h2>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Thời gian</th>
-                    <th>Người mở</th>
-                    <th>Phương thức</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                </tr>
-            </thead>
-            <tbody id="historyBody">
-                <tr><td colspan="5" style="text-align:center;">Đang tải dữ liệu...</td></tr>
-            </tbody>
-        </table>
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🔐</div>
+      <div>
+        <div>SAFE VMU</div>
+        <div class="logo-sub">SURVEILLANCE SYSTEM</div>
+      </div>
+    </div>
+    <div class="header-center">
+      SAFE_VMU_01 · NHẬT KÝ HOẠT ĐỘNG<br>
+      <span>■ ■ ■</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-links">
+      <a href="index.html">🏠 Trang chủ</a>
+      <a href="history.html" class="active">📋 Lịch sử</a>
+      <a href="#">👤 Tài khoản</a>
+    </div>
+    <div class="nav-user">
+      <span id="userNameDisplay" style="font-weight:600;">User</span>
+      <button class="btn btn-danger" style="padding:6px 14px;font-size:0.78rem;" onclick="doLogout()">Đăng xuất</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="container">
+
+    <!-- Page Header -->
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div class="page-title">
+          📋 Nhật ký hoạt động
+          <span id="safeIdDisplay" style="font-size:0.75rem;font-weight:400;color:var(--muted);font-family:var(--font-mono);">SAFE_001</span>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text-2);">Theo dõi toàn bộ lịch sử mở/đóng két sắt</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="loadHistory()" style="font-size:0.82rem;padding:8px 16px;">
+          ↺ Làm mới
+        </button>
+        <select id="filterStatus" class="input-field" style="width:auto;padding:8px 14px;font-size:0.82rem;" onchange="applyFilter()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="success">Thành công</option>
+          <option value="fail">Thất bại</option>
+        </select>
+        <select id="filterMethod" class="input-field" style="width:auto;padding:8px 14px;font-size:0.82rem;" onchange="applyFilter()">
+          <option value="">Tất cả phương thức</option>
+          <option value="face">Khuôn mặt</option>
+          <option value="finger">Vân tay</option>
+        </select>
+      </div>
     </div>
 
-    <script>
-        const user = getCurrentUser();
-        const roles = getCurrentRoles();
-        document.getElementById('userNameDisplay').textContent = user ? user.full_name : "Khách";
+    <!-- Stats Row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Tổng lượt</div>
+        <div style="font-size:1.5rem;font-weight:700;color:var(--text);font-family:var(--font-mono);" id="statTotal">—</div>
+      </div>
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Thành công</div>
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green);font-family:var(--font-mono);" id="statSuccess">—</div>
+      </div>
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Thất bại</div>
+        <div style="font-size:1.5rem;font-weight:700;color:var(--red);font-family:var(--font-mono);" id="statFail">—</div>
+      </div>
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Hôm nay</div>
+        <div style="font-size:1.5rem;font-weight:700;color:var(--accent);font-family:var(--font-mono);" id="statToday">—</div>
+      </div>
+    </div>
 
-        // Mặc định lấy két đầu tiên mà người dùng có quyền (để test)
-        let targetSafeId = "safe_001"; 
-        
-        async function loadHistory() {
-            try {
-                const res = await fetch(`${API_BASE}/history/view`, { // Đổi lại endpoint theo BE của bạn nếu cần
-                    method: 'POST',
-                    headers: getAuthHeaders(), // ĐÃ ĐÍNH KÈM TOKEN JWT
-                    body: JSON.stringify({ user_id: user.id, safe_id: targetSafeId })
-                });
-                
-                const data = await res.json();
-                const tbody = document.getElementById('historyBody');
-                tbody.innerHTML = "";
+    <!-- Table Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Danh sách bản ghi</div>
+        <span class="badge badge-accent" id="recordCount">0 bản ghi</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Thời gian</th>
+              <th>Người mở</th>
+              <th>Phương thức</th>
+              <th>Két sắt</th>
+              <th>Trạng thái</th>
+              <th style="text-align:right;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr>
+              <td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">
+                <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>
+                Đang tải dữ liệu...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-                if (data.success && data.logs.length > 0) {
-                    data.logs.forEach(log => {
-                        const time = new Date(log.created_at || log.timestamp).toLocaleString('vi-VN');
-                        const methodStr = log.method === 'face' ? 'Khuôn mặt' : (log.method === 'finger' ? 'Vân tay' : 'Khác');
-                        const statusColor = (log.result === 'success' || !log.result) ? '#2ed573' : 'var(--red)';
-                        const statusTxt = (log.result === 'success' || !log.result) ? 'Thành công' : 'Thất bại';
+  </div>
 
-                        tbody.innerHTML += `
-                            <tr>
-                                <td>${time}</td>
-                                <td style="color: var(--accent)">${log.actor_name || 'ID: ' + log.actor_id}</td>
-                                <td>${methodStr}</td>
-                                <td style="color: ${statusColor}">${statusTxt}</td>
-                                <td><button class="btn btn-danger" style="padding: 3px 8px; font-size: 0.7rem;" onclick="deleteLog(${log.id})">XÓA</button></td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Không có lịch sử nào.</td></tr>`;
-                }
-            } catch (err) {
-                console.error(err);
-                document.getElementById('historyBody').innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--red);">Lỗi tải dữ liệu.</td></tr>`;
-            }
+  <!-- FOOTER -->
+  <footer>
+    <div>SAFE SURVEILLANCE SYSTEM v1.0 · ESP32-S3 → HiveMQ → Node.js</div>
+    <div class="ws-status">
+      <div class="ws-dot"></div>
+      <span id="wsLabel">Đang kết nối...</span>
+    </div>
+  </footer>
+
+  <script>
+    // Clock
+    function tick() {
+      document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    tick(); setInterval(tick, 1000);
+
+    const user  = getCurrentUser();
+    const roles = getCurrentRoles();
+    document.getElementById('userNameDisplay').textContent = user ? user.full_name : 'Khách';
+
+    let allLogs = [];
+    let targetSafeId = 'safe_001';
+
+    async function loadHistory() {
+      document.getElementById('historyBody').innerHTML =
+        `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">
+          <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>Đang tải dữ liệu...
+        </td></tr>`;
+      try {
+        const res  = await fetch(`${API_BASE}/history/view`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ user_id: user.id, safe_id: targetSafeId })
+        });
+        const data = await res.json();
+
+        if (data.success && data.logs) {
+          allLogs = data.logs;
+          updateStats(allLogs);
+          renderTable(allLogs);
+        } else {
+          showEmpty();
         }
+      } catch (err) {
+        document.getElementById('historyBody').innerHTML =
+          `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:32px;">
+            <div style="font-size:1.5rem;margin-bottom:8px;">⚠️</div>Lỗi tải dữ liệu. Vui lòng thử lại.
+          </td></tr>`;
+      }
+    }
 
-        async function deleteLog(logId) {
-            if(!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
-            // Gọi API Delete (Cần viết thêm route /history/delete trong server.js)
-            alert("Tính năng xóa đang gọi API cho log ID: " + logId);
-        }
+    function updateStats(logs) {
+      const today = new Date().toDateString();
+      const success = logs.filter(l => l.result === 'success' || !l.result).length;
+      const fail    = logs.filter(l => l.result && l.result !== 'success').length;
+      const todayCount = logs.filter(l => new Date(l.created_at || l.timestamp).toDateString() === today).length;
+      document.getElementById('statTotal').textContent   = logs.length;
+      document.getElementById('statSuccess').textContent = success;
+      document.getElementById('statFail').textContent    = fail;
+      document.getElementById('statToday').textContent   = todayCount;
+    }
 
-        loadHistory();
-    </script>
+    function applyFilter() {
+      const status = document.getElementById('filterStatus').value;
+      const method = document.getElementById('filterMethod').value;
+      const filtered = allLogs.filter(l => {
+        const matchStatus = !status || (status === 'success' ? (!l.result || l.result === 'success') : (l.result && l.result !== 'success'));
+        const matchMethod = !method || l.method === method;
+        return matchStatus && matchMethod;
+      });
+      renderTable(filtered);
+    }
+
+    function renderTable(logs) {
+      document.getElementById('recordCount').textContent = logs.length + ' bản ghi';
+      const tbody = document.getElementById('historyBody');
+
+      if (!logs.length) { showEmpty(); return; }
+
+      tbody.innerHTML = logs.map(log => {
+        const time      = new Date(log.created_at || log.timestamp).toLocaleString('vi-VN');
+        const isSuccess = !log.result || log.result === 'success';
+        const method    = log.method === 'face' ? '🫥 Khuôn mặt' : log.method === 'finger' ? '🫆 Vân tay' : '🔑 Khác';
+        const statusBadge = isSuccess
+          ? `<span class="badge badge-green"><span class="dot"></span> Thành công</span>`
+          : `<span class="badge badge-red"><span class="dot"></span> Thất bại</span>`;
+        return `
+          <tr>
+            <td class="mono" style="font-size:0.8rem;color:var(--text-2);">${time}</td>
+            <td style="font-weight:500;color:var(--accent);">${log.actor_name || 'ID: ' + log.actor_id}</td>
+            <td style="color:var(--text-2);font-size:0.85rem;">${method}</td>
+            <td class="mono" style="font-size:0.75rem;color:var(--muted);">SAFE_001</td>
+            <td>${statusBadge}</td>
+            <td style="text-align:right;">
+              <button class="btn btn-danger" style="padding:5px 12px;font-size:0.75rem;" onclick="deleteLog(${log.id})">
+                🗑 Xóa
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function showEmpty() {
+      document.getElementById('historyBody').innerHTML =
+        `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px;">
+          <div style="font-size:2rem;margin-bottom:8px;">📭</div>
+          <div style="font-weight:500;margin-bottom:4px;">Không có bản ghi nào</div>
+          <div style="font-size:0.78rem;">Chưa có hoạt động nào được ghi lại</div>
+        </td></tr>`;
+    }
+
+    async function deleteLog(logId) {
+      if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
+      alert('Tính năng xóa đang gọi API cho log ID: ' + logId);
+    }
+
+    loadHistory();
+  </script>
 </body>
 </html>
