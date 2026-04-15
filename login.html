@@ -63,6 +63,11 @@
     </div>
     
     <button class="fp-btn fp-btn-primary" onclick="login()">Đăng nhập</button>
+
+    <div style="text-align: center; margin-top: 18px; font-size: 0.85rem; color: #6b7280;">
+      Chưa có tài khoản? 
+      <a href="register.html" style="color: #2563eb; text-decoration: none; font-weight: 600;">Đăng ký hệ thống</a>
+    </div>
   </div>
 
   <div class="fp-overlay" id="fpOverlay">
@@ -131,7 +136,7 @@
       el.className = 'msg-box show ' + type;
     }
 
-    // --- HÀM ĐĂNG NHẬP (BẠN ĐANG THIẾU CÁI NÀY) ---
+    // --- HÀM ĐĂNG NHẬP ---
     async function login() {
       const email = document.getElementById('email').value.trim();
       const pw = document.getElementById('password').value;
