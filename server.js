@@ -214,7 +214,46 @@ const upload = multer({
 
       } catch (err) { res.status(500).json({ success: false, error: "Lỗi hệ thống khi gửi email" }); }
   });
+// ==========================================
+  // API: CẬP NHẬT THÔNG TIN TÀI KHOẢN (PROFILE)
+  // ==========================================
+  app.post('/api/auth/update-profile', async (req, res) => {
+      try {
+          const { user_id, full_name, new_password } = req.body;
 
+          if (!user_id || !full_name) {
+              return res.status(400).json({ success: false, error: "Thiếu thông tin bắt buộc" });
+          }
+
+          // Chuẩn bị dữ liệu cập nhật (Luôn cập nhật tên)
+          let updateData = { full_name: full_name };
+
+          // Nếu người dùng có nhập mật khẩu mới thì mới tiến hành mã hóa và cập nhật
+          if (new_password && new_password.trim() !== "") {
+              if (new_password.length < 8) {
+                  return res.status(400).json({ success: false, error: "Mật khẩu mới phải có ít nhất 8 ký tự" });
+              }
+              const saltRounds = 10;
+              updateData.password_hash = await bcrypt.hash(new_password, saltRounds);
+          }
+
+          // Lưu vào Supabase
+          const { data: updatedUser, error: updateError } = await supabase
+              .from('accounts')
+              .update(updateData)
+              .eq('id', user_id)
+              .select('id, full_name, email, role')
+              .single();
+
+          if (updateError) throw updateError;
+
+          res.json({ success: true, message: "Cập nhật hồ sơ thành công!", user: updatedUser });
+
+      } catch (err) {
+          console.error("Lỗi cập nhật Profile:", err);
+          res.status(500).json({ success: false, error: "Lỗi máy chủ khi cập nhật" });
+      }
+  });
   // ==========================================
   // API: ĐẶT LẠI MẬT KHẨU TÀI KHOẢN
   // ==========================================
