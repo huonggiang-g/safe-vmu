@@ -120,7 +120,7 @@
         <div class="log-title">Nhật ký sự kiện</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="log-count" id="logCount">0</span>
-          <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="reloadFaces()">↺ Reload</button>
+          <button class="btn btn-danger" style="background:transparent; padding:4px 10px; font-size:0.72rem;" onclick="clearLogs()">🗑️ Xóa</button>
         </div>
       </div>
       <div id="logContainer">
@@ -293,7 +293,11 @@ function addLog(type, msg) {
   document.getElementById('logCount').textContent = logCount;
   if (logContainer.children.length > MAX_LOGS) logContainer.lastChild.remove();
 }
-
+function clearLogs() {
+  logContainer.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện nào...</div>';
+  logCount = 0;
+  document.getElementById('logCount').textContent = '0';
+}
 // ════ WEBSOCKET ════
 function connect() {
   ws = new WebSocket(WS_URL);
@@ -334,7 +338,7 @@ function handleTextMsg(raw) {
       addLog('finger', `Vân tay: ${msg.name || 'ID ' + msg.id}`);
     } else if (msg.type === 'stats') {
       document.getElementById('wsClients').textContent = msg.clients || '—';
-    } else if (msg.type === 'mqtt_status') {
+    } else if (msg.type === 'status') {
       const badge = document.getElementById('mqttBadge');
       const lbl   = document.getElementById('mqttLabel');
       badge.className = 'conn-badge ' + (msg.connected ? 'online' : 'offline');
