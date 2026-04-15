@@ -11,7 +11,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <header>
   <div class="logo">
     <div class="logo-icon">🔐</div>
@@ -33,7 +32,6 @@
   </div>
 </header>
 
-<!-- NAV -->
 <nav>
   <div class="nav-links">
     <a href="index.html" class="active">🏠 Trang chủ</a>
@@ -46,12 +44,9 @@
   </div>
 </nav>
 
-<!-- MAIN -->
 <main>
-  <!-- LEFT: Camera Section -->
   <div class="cam-section">
 
-    <!-- Camera Card -->
     <div class="cam-card">
       <div class="cam-card-header">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -76,7 +71,6 @@
       </div>
     </div>
 
-    <!-- Face Panel -->
     <div class="face-panel">
       <div class="face-avatar" id="faceAvatar">👤</div>
       <div class="face-info">
@@ -90,7 +84,6 @@
       <button class="unlock-btn" onclick="manualUnlock()">⚡ Mở thủ công</button>
     </div>
 
-    <!-- Stats Bar -->
     <div class="stats-bar">
       <div class="stat">
         <div class="stat-label">Frames nhận</div>
@@ -111,10 +104,8 @@
     </div>
   </div>
 
-  <!-- RIGHT: Sidebar -->
   <div class="sidebar">
 
-    <!-- Event Log -->
     <div class="log-card">
       <div class="log-header">
         <div class="log-title">Nhật ký sự kiện</div>
@@ -130,7 +121,6 @@
       </div>
     </div>
 
-    <!-- Capture History -->
     <div class="thumb-section">
       <div class="thumb-label">Ảnh chụp gần đây</div>
       <div id="thumbStrip">
@@ -138,10 +128,9 @@
       </div>
     </div>
 
-    <!-- Fingerprint Panel -->
     <div class="finger-panel">
       <div class="finger-panel-header">
-        <div class="finger-panel-title">🫆 Quản lý vân tay</div>
+        <div class="finger-panel-title">🫆 Trạng thái vân tay</div>
         <span class="log-count" id="fingerCount">0</span>
       </div>
       <div class="finger-body">
@@ -149,31 +138,21 @@
           <div class="finger-icon" id="fingerIcon">🫆</div>
           <div class="finger-msg">
             <div class="finger-msg-title" id="fingerMsgTitle">Đang chờ</div>
-            <div class="finger-msg-sub" id="fingerMsgSub">Hệ thống sẵn sàng</div>
+            <div class="finger-msg-sub" id="fingerMsgSub">Hệ thống sẵn sàng xác thực</div>
           </div>
         </div>
 
-        <div class="finger-enroll-row">
-          <input class="finger-input" id="fingerNameInput" type="text" placeholder="Tên người dùng..." maxlength="20">
-          <button class="finger-btn enroll" id="enrollBtn" onclick="startEnroll()">+ Đăng ký</button>
-        </div>
-
-        <div class="finger-list" id="fingerList">
+        <div class="finger-list" id="fingerList" style="margin-top: 10px;">
           <div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:12px;">
             Chưa có vân tay nào
           </div>
         </div>
       </div>
-
-      <button class="enroll-face-btn" onclick="openFaceEnrollModal()">
-        📸 Đăng ký khuôn mặt mới
-      </button>
     </div>
 
   </div>
 </main>
 
-<!-- FOOTER -->
 <footer>
   <div>SAFE SURVEILLANCE SYSTEM v1.0 · ESP32-S3 → HiveMQ → Node.js → WebSocket</div>
   <div class="ws-status">
@@ -181,54 +160,6 @@
     <span id="wsLabel">WebSocket: Đang kết nối...</span>
   </div>
 </footer>
-
-<!-- ════ MODAL ĐĂNG KÝ KHUÔN MẶT ════ -->
-<div class="modal-overlay" id="faceEnrollModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title">📸 Đăng ký khuôn mặt mới</div>
-      <button class="modal-close" onclick="closeFaceEnrollModal()">✕ Đóng</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="enroll-name-row">
-        <label>Tên:</label>
-        <input class="enroll-name-input input-field" id="enrollFaceName" type="text"
-               placeholder="Nhập tên người dùng..." maxlength="30">
-      </div>
-
-      <div class="cam-preview-wrap">
-        <div class="cam-placeholder-modal" id="enrollPlaceholder">
-          <div class="ph-icon">📷</div>
-          <p>Bấm "Mở Camera" để bắt đầu</p>
-        </div>
-        <video id="enrollVideo" autoplay playsinline muted></video>
-        <canvas id="enrollCanvas" style="display:none;"></canvas>
-        <img id="capturedPreview" alt="Ảnh đã chụp">
-        <div class="face-guide" id="faceGuide">
-          <div class="face-guide-oval"></div>
-        </div>
-      </div>
-
-      <div class="enroll-status-bar" id="enrollStatusBar"></div>
-
-      <div class="modal-actions" id="enrollActions">
-        <button class="modal-btn start"   id="btnStartCamera" onclick="startEnrollCamera()">📷 Mở Camera</button>
-        <button class="modal-btn capture" id="btnCapture"     onclick="captureEnrollPhoto()" disabled>⚡ Chụp ảnh</button>
-        <button class="modal-btn save"    id="btnSave"        onclick="saveEnrollPhoto()"    disabled>💾 Lưu</button>
-        <button class="modal-btn retake"  id="btnRetake"      onclick="retakeEnrollPhoto()"  style="display:none;">↺ Chụp lại</button>
-      </div>
-
-      <div class="face-db-section">
-        <div class="face-db-title">👥 Khuôn mặt đã đăng ký <span id="faceDbCount">(0)</span></div>
-        <div class="face-db-list" id="faceDbList">
-          <div class="face-db-empty">Đang tải...</div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
 
 <script>
 // ════ CONFIG ════
@@ -239,7 +170,6 @@ const MAX_LOGS   = 80;
 
 let frameCount = 0, logCount = 0;
 let ws = null, thumbs = [];
-let enrollStream = null, enrollPhotoBlob = null, enrollPhotoType = null;
 
 // DOM refs
 const camImage      = document.getElementById('camImage');
@@ -249,15 +179,6 @@ const hudSize       = document.getElementById('hudSize');
 const recBadge      = document.getElementById('recBadge');
 const logContainer  = document.getElementById('logContainer');
 const thumbStrip    = document.getElementById('thumbStrip');
-const enrollVideo   = document.getElementById('enrollVideo');
-const enrollCanvas  = document.getElementById('enrollCanvas');
-const capturedPreview = document.getElementById('capturedPreview');
-const enrollStatusBar = document.getElementById('enrollStatusBar');
-const faceGuide     = document.getElementById('faceGuide');
-const btnStartCamera = document.getElementById('btnStartCamera');
-const btnCapture    = document.getElementById('btnCapture');
-const btnSave       = document.getElementById('btnSave');
-const btnRetake     = document.getElementById('btnRetake');
 
 // User
 const user = getCurrentUser();
@@ -338,7 +259,7 @@ function connect() {
       const msg = JSON.parse(event.data);
       handleMessage(msg);
     } catch (e) {
-      // Bỏ qua nếu dữ liệu không phải JSON hợp lệ
+      // Bỏ qua nếu không phải JSON
     }
   };
 }
@@ -376,8 +297,7 @@ function handleMessage(msg) {
       addLog("error", `Face service: ${msg.error}`);
       break;
     case "faces_reloaded":
-      addLog("info", `🔄 Reload ${msg.count} khuôn mặt`);
-      loadFaceDbList();
+      addLog("info", `🔄 Hệ thống đã làm mới dữ liệu khuôn mặt`);
       break;
     case "status":
       const badge = document.getElementById('mqttBadge');
@@ -397,10 +317,6 @@ function handleMessage(msg) {
       break;
     case "finger_list":
       renderFingerList(msg.db);
-      break;
-    case "face_enrolled":
-    case "face_deleted":
-      loadFaceDbList();
       break;
   }
 }
@@ -500,47 +416,36 @@ function manualUnlock() {
   }
 }
 
-function reloadFaces() {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "reload_faces" }));
-    addLog("info", "↺ Đang yêu cầu tải lại dữ liệu khuôn mặt...");
-  }
-}
-
 // ════ FINGERPRINT ════
 function handleFingerStatus(msg) {
   const ev = msg.event;
   if (ev === "enroll_waiting") {
-    setFingerStatus("waiting", "🫆", "ĐẶT NGÓN TAY LẦN 1", "Cảm biến đang chờ...");
-    addLog("info", "🫆 Cảm biến sẵn sàng — đặt ngón tay");
+    setFingerStatus("waiting", "🫆", "ĐANG ĐĂNG KÝ", "ESP32 đang lấy vân tay...");
+    addLog("info", "🫆 Đang có yêu cầu đăng ký vân tay mới");
   } else if (ev === "enroll_step1") {
-    setFingerStatus("waiting", "🫆", "ĐẶT LẠI LẦN 2", "Nhấc tay rồi đặt lại...");
-    addLog("info", "🫆 Vân tay lần 1 OK");
+    setFingerStatus("waiting", "🫆", "ĐẶT LẠI LẦN 2", "ESP32 đang chờ xác nhận...");
   } else if (ev === "enroll_ok") {
-    document.getElementById("enrollBtn").disabled = false;
-    document.getElementById("fingerNameInput").value = "";
     setFingerStatus("success", "✅", "ĐĂNG KÝ THÀNH CÔNG", `${msg.name} · ID #${msg.id}`);
-    addLog("status", `✅ Đăng ký vân tay: ${msg.name} (ID=${msg.id})`);
+    addLog("status", `✅ Đăng ký vân tay thành công: ${msg.name} (ID=${msg.id})`);
     if (msg.db) renderFingerList(msg.db);
-    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng xác thực"), 3000);
   } else if (ev === "enroll_fail") {
-    document.getElementById("enrollBtn").disabled = false;
-    setFingerStatus("fail", "❌", "ĐĂNG KÝ THẤT BẠI", msg.reason || "Thử lại");
-    addLog("error", `❌ Đăng ký thất bại: ${msg.reason || ""}`);
-    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+    setFingerStatus("fail", "❌", "ĐĂNG KÝ THẤT BẠI", msg.reason || "Lỗi ESP32");
+    addLog("error", `❌ ESP32 báo lỗi đăng ký: ${msg.reason || ""}`);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng xác thực"), 3000);
   } else if (ev === "verify_ok") {
     const displayName = msg.name || `ID #${msg.id}`;
     setFingerStatus("verify-ok", "✅", `ĐÚNG VÂN TAY`, displayName);
     addLog("status", `✅ Xác thực OK: ${displayName}`);
-    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 4000);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng xác thực"), 4000);
   } else if (ev === "verify_fail") {
     setFingerStatus("verify-fail", "❌", "SAI VÂN TAY", "Không khớp dữ liệu");
     addLog("error", "❌ Xác thực vân tay thất bại");
-    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 3000);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng xác thực"), 3000);
   } else if (ev === "delete_ok") {
     setFingerStatus("success", "🗑️", "ĐÃ XÓA VÂN TAY", `ID #${msg.id}`);
     if (msg.db) renderFingerList(msg.db);
-    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng"), 2000);
+    setTimeout(() => setFingerStatus("", "🫆", "ĐANG CHỜ", "Hệ thống sẵn sàng xác thực"), 2000);
   }
 }
 
@@ -552,24 +457,7 @@ function setFingerStatus(state, icon, title, sub) {
   document.getElementById("fingerMsgSub").textContent = sub;
 }
 
-function startEnroll() {
-  const name = document.getElementById("fingerNameInput").value.trim();
-  if (!name) { setFingerStatus("fail", "⚠️", "THIẾU TÊN", "Vui lòng nhập tên"); return; }
-  if (!ws || ws.readyState !== WebSocket.OPEN) { setFingerStatus("fail", "⚠️", "MẤT KẾT NỐI", "WebSocket chưa kết nối"); return; }
-  
-  document.getElementById("enrollBtn").disabled = true;
-  setFingerStatus("waiting", "🫆", "ĐANG CHUẨN BỊ", `Đang đăng ký: ${name}`);
-  ws.send(JSON.stringify({ type: "finger_enroll", name }));
-  addLog("info", `🫆 Yêu cầu đăng ký vân tay: ${name}`);
-}
-
-function deleteFingerprint(id, name) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  if (!confirm(`Xóa vân tay "${name}" (ID: ${id})?`)) return;
-  ws.send(JSON.stringify({ type: "finger_delete", id }));
-  addLog("info", `🗑️ Yêu cầu xóa vân tay ID=${id}`);
-}
-
+// Hàm render giờ đã bỏ nút Xóa
 function renderFingerList(db) {
   const list = document.getElementById("fingerList");
   const count = Object.keys(db).length;
@@ -581,190 +469,10 @@ function renderFingerList(db) {
   list.innerHTML = Object.entries(db).map(([id, info]) => `
     <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:0.75rem; background:rgba(0,0,0,0.2); margin-bottom: 6px;">
       <div><span style="color:var(--accent); margin-right:8px; font-weight:bold;">#${id}</span> ${info.name}</div>
-      <button style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:0.9rem;" onclick="deleteFingerprint(${id},'${info.name}')">✕</button>
+      <span style="color:var(--green);">✓ Active</span>
     </div>
   `).join("");
 }
-
-// ════ MODAL ENROLL KHUÔN MẶT ════
-function openFaceEnrollModal() {
-  document.getElementById('faceEnrollModal').classList.add('open');
-  resetEnrollState();
-  loadFaceDbList();
-}
-
-function closeFaceEnrollModal() {
-  stopEnrollCamera();
-  document.getElementById('faceEnrollModal').classList.remove('open');
-  resetEnrollState();
-}
-
-function resetEnrollState() {
-  enrollPhotoBlob = null;
-  enrollVideo.style.display       = 'none';
-  capturedPreview.style.display   = 'none';
-  document.getElementById('enrollPlaceholder').style.display = 'flex';
-  faceGuide.classList.remove('show');
-  enrollStatusBar.className       = 'enroll-status-bar';
-  enrollStatusBar.textContent     = '';
-  btnStartCamera.style.display    = 'block';
-  btnStartCamera.disabled         = false;
-  btnCapture.disabled             = true;
-  btnSave.disabled                = true;
-  btnRetake.style.display         = 'none';
-}
-
-async function startEnrollCamera() {
-  try {
-    enrollStatusBar.className = 'enroll-status-bar loading show';
-    enrollStatusBar.textContent = 'Đang khởi động camera...';
-    btnStartCamera.disabled = true;
-    enrollStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
-    });
-    enrollVideo.srcObject = enrollStream;
-    enrollVideo.style.display = 'block';
-    document.getElementById('enrollPlaceholder').style.display = 'none';
-    faceGuide.classList.add('show');
-    btnStartCamera.style.display = 'none';
-    btnCapture.disabled = false;
-    enrollStatusBar.className = 'enroll-status-bar ok show';
-    enrollStatusBar.textContent = '✅ Camera sẵn sàng — đưa mặt vào khung oval rồi bấm Chụp ảnh';
-  } catch (err) {
-    btnStartCamera.disabled = false;
-    enrollStatusBar.className = 'enroll-status-bar fail show';
-    if (err.name === 'NotAllowedError') enrollStatusBar.textContent = '❌ Không có quyền camera — vui lòng cho phép trong trình duyệt';
-    else if (err.name === 'NotFoundError') enrollStatusBar.textContent = '❌ Không tìm thấy camera thiết bị';
-    else enrollStatusBar.textContent = '❌ Lỗi camera: ' + err.message;
-  }
-}
-
-function stopEnrollCamera() {
-  if (enrollStream) { enrollStream.getTracks().forEach(t => t.stop()); enrollStream = null; }
-  enrollVideo.srcObject = null;
-}
-
-function captureEnrollPhoto() {
-  if (!enrollStream) return;
-  const w = enrollVideo.videoWidth || 640;
-  const h = enrollVideo.videoHeight || 480;
-  enrollCanvas.width = w; enrollCanvas.height = h;
-  enrollCanvas.getContext('2d').drawImage(enrollVideo, 0, 0, w, h);
-  enrollCanvas.toBlob(blob => {
-    enrollPhotoBlob = blob;
-    const url = URL.createObjectURL(blob);
-    capturedPreview.src = url;
-    capturedPreview.style.display = 'block';
-    enrollVideo.style.display = 'none';
-    faceGuide.classList.remove('show');
-    btnCapture.disabled = true;
-    btnSave.disabled = false;
-    btnRetake.style.display = 'block';
-    enrollStatusBar.className = 'enroll-status-bar ok show';
-    enrollStatusBar.textContent = '📸 Ảnh đã chụp — kiểm tra rồi bấm Lưu hoặc Chụp lại';
-  }, 'image/jpeg', 0.92);
-}
-
-function retakeEnrollPhoto() {
-  enrollPhotoBlob = null;
-  capturedPreview.style.display = 'none';
-  capturedPreview.src = '';
-  enrollVideo.style.display = 'block';
-  faceGuide.classList.add('show');
-  btnCapture.disabled = false;
-  btnSave.disabled = true;
-  btnRetake.style.display = 'none';
-  enrollStatusBar.className = 'enroll-status-bar ok show';
-  enrollStatusBar.textContent = '✅ Camera sẵn sàng — đưa mặt vào khung oval rồi bấm Chụp ảnh';
-}
-
-async function saveEnrollPhoto() {
-  const name = document.getElementById('enrollFaceName').value.trim();
-  if (!name) {
-    enrollStatusBar.className = 'enroll-status-bar fail show';
-    enrollStatusBar.textContent = '❌ Vui lòng nhập tên trước khi lưu';
-    document.getElementById('enrollFaceName').focus();
-    return;
-  }
-  if (!enrollPhotoBlob) {
-    enrollStatusBar.className = 'enroll-status-bar fail show';
-    enrollStatusBar.textContent = '❌ Chưa có ảnh — bấm Chụp ảnh trước';
-    return;
-  }
-  btnSave.disabled = true;
-  btnRetake.disabled = true;
-  enrollStatusBar.className = 'enroll-status-bar loading show';
-  enrollStatusBar.textContent = '⏳ Đang lưu và trích xuất dữ liệu khuôn mặt...';
-  
-  try {
-    const formData = new FormData();
-    formData.append('name', name);
-    // API Cũ sử dụng endpoint này để trích xuất dữ liệu
-    formData.append('photo', enrollPhotoBlob, `${name}_${Date.now()}.jpg`);
-    const res = await fetch('/api/register-owner', { method: 'POST', body: formData });
-    const data = await res.json();
-    
-    if (res.ok && data.success) {
-      enrollStatusBar.className = 'enroll-status-bar ok show';
-      enrollStatusBar.textContent = `✅ Đã lưu ảnh cho "${name}"`;
-      addLog('status', `📸 Đăng ký khuôn mặt: ${name}`);
-      loadFaceDbList();
-      setTimeout(() => {
-        retakeEnrollPhoto();
-        enrollStatusBar.className = 'enroll-status-bar ok show';
-        enrollStatusBar.textContent = `✅ Lưu thành công! Có thể chụp thêm góc khác cho "${name}"`;
-      }, 2000);
-    } else {
-      throw new Error(data.error || 'Lỗi không xác định');
-    }
-  } catch (err) {
-    enrollStatusBar.className = 'enroll-status-bar fail show';
-    enrollStatusBar.textContent = '❌ Lỗi lưu ảnh: ' + err.message;
-    btnSave.disabled = false;
-    btnRetake.disabled = false;
-  }
-}
-
-async function loadFaceDbList() {
-  try {
-    const res  = await fetch('/api/face-list');
-    const data = await res.json();
-    const list = document.getElementById('faceDbList');
-    document.getElementById('faceDbCount').textContent = `(${data.total})`;
-    if (data.total === 0) {
-      list.innerHTML = `<div class="face-db-empty">Chưa có khuôn mặt nào trong hệ thống</div>`;
-      return;
-    }
-    list.innerHTML = data.people.map(p => `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border:1px solid var(--border); border-radius:4px; font-size:0.75rem; background:rgba(0,0,0,0.2); margin-bottom: 6px;">
-        <span style="color:var(--text); font-weight:bold;">👤 ${p.name}</span>
-        <span style="color:var(--muted);">${p.photos} ảnh</span>
-        <button style="background:transparent; border:none; color:var(--red); cursor:pointer; font-size:0.9rem;" onclick="deleteFaceFromDb('${p.folder}','${p.name}')">🗑️</button>
-      </div>
-    `).join('');
-  } catch (_) {
-    document.getElementById('faceDbList').innerHTML = `<div class="face-db-empty" style="color:var(--red)">Lỗi tải danh sách</div>`;
-  }
-}
-
-async function deleteFaceFromDb(folder, name) {
-  if (!confirm(`Xóa toàn bộ ảnh mẫu của "${name}"?`)) return;
-  try {
-    const res  = await fetch(`/api/face/${encodeURIComponent(folder)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) { 
-      addLog('info', `🗑️ Đã xóa khuôn mặt: ${name}`); 
-      loadFaceDbList();
-    }
-  } catch (err) { 
-    alert('Lỗi xóa: ' + err.message);
-  }
-}
-
-// Close modal on backdrop click
-document.getElementById('faceEnrollModal').addEventListener('click', function(e) {
-  if (e.target === this) closeFaceEnrollModal();
-});
 
 // Bắt đầu kết nối tự động
 connect();
