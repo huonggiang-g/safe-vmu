@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Lịch Sử Két Sắt | SAFE VMU</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="client_auth.js"></script>
+</head>
+<body>
+    <nav>
+        <div class="nav-links">
+            <a href="index.html">Trang chủ Két</a>
+            <a href="history.html" class="active">Lịch sử</a>
+            <a href="#">Tài khoản</a>
+        </div>
+        <div class="nav-user">
+            <span id="userNameDisplay">User</span> | 
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.7rem;" onclick="doLogout()">LOGOUT</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>NHẬT KÝ HOẠT ĐỘNG <span id="safeIdDisplay" style="color: var(--accent); font-size: 1rem;"></span></h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Người mở</th>
+                    <th>Phương thức</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <tr><td colspan="5" style="text-align:center;">Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const user = getCurrentUser();
+        const roles = getCurrentRoles();
+        document.getElementById('userNameDisplay').textContent = user ? user.full_name : "Khách";
+
+        // Mặc định lấy két đầu tiên mà người dùng có quyền (để test)
+        let targetSafeId = "safe_001"; 
+        
+        async function loadHistory() {
+            try {
+                const res = await fetch(`${API_BASE}/history/view`, { // Đổi lại endpoint theo BE của bạn nếu cần
+                    method: 'POST',
+                    headers: getAuthHeaders(), // ĐÃ ĐÍNH KÈM TOKEN JWT
+                    body: JSON.stringify({ user_id: user.id, safe_id: targetSafeId })
+                });
+                
+                const data = await res.json();
+                const tbody = document.getElementById('historyBody');
+                tbody.innerHTML = "";
+
+                if (data.success && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const time = new Date(log.created_at || log.timestamp).toLocaleString('vi-VN');
+                        const methodStr = log.method === 'face' ? 'Khuôn mặt' : (log.method === 'finger' ? 'Vân tay' : 'Khác');
+                        const statusColor = (log.result === 'success' || !log.result) ? '#2ed573' : 'var(--red)';
+                        const statusTxt = (log.result === 'success' || !log.result) ? 'Thành công' : 'Thất bại';
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${time}</td>
+                                <td style="color: var(--accent)">${log.actor_name || 'ID: ' + log.actor_id}</td>
+                                <td>${methodStr}</td>
+                                <td style="color: ${statusColor}">${statusTxt}</td>
+                                <td><button class="btn btn-danger" style="padding: 3px 8px; font-size: 0.7rem;" onclick="deleteLog(${log.id})">XÓA</button></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Không có lịch sử nào.</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('historyBody').innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--red);">Lỗi tải dữ liệu.</td></tr>`;
+            }
+        }
+
+        async function deleteLog(logId) {
+            if(!confirm("Bạn có chắc chắn muốn xóa bản ghi này?")) return;
+            // Gọi API Delete (Cần viết thêm route /history/delete trong server.js)
+            alert("Tính năng xóa đang gọi API cho log ID: " + logId);
+        }
+
+        loadHistory();
+    </script>
+</body>
+</html>

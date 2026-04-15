@@ -1,6 +1,7 @@
 /**
  * server.js — MQTT → WebSocket Bridge + Face Recognition + Face Enrollment
  */
+const nodemailer = require('nodemailer');
 require("dotenv").config();
 
 const express   = require("express");
@@ -37,6 +38,14 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     process.exit(1);
 }
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS
+    }
+});
 
 // ── Thư mục lưu ảnh khuôn mặt mẫu (phải khớp với KNOWN_FACES_DIR trong face_service.py) ──
 const DATA_FACE_DIR = path.join(__dirname, "data_face");
@@ -156,6 +165,161 @@ const upload = multer({
           res.status(500).json({ success: false, error: "Lỗi máy chủ cục bộ" });
       }
   });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ success: false, error: "Vui lòng nhập Email và Mật khẩu" });
+        }
+
+        // 1. Tìm user theo Email
+        const { data: user, error: userError } = await supabase
+            .from('accounts')
+            .select('id, full_name, email, password_hash, role')
+            .eq('email', email)
+            .single();
+
+        if (userError || !user) {
+            return res.status(401).json({ success: false, error: "Email hoặc mật khẩu không chính xác" });
+        }
+
+        // 2. So sánh mật khẩu (Giải mã Hash)
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, error: "Email hoặc mật khẩu không chính xác" });
+        }
+
+        // 3. Tìm các két mà người này là OWNER
+        const { data: ownedSafes } = await supabase
+            .from('safe_ownership')
+            .select('safe_id')
+            .eq('account_id', user.id)
+            .eq('is_active', true); // Chỉ lấy những két đang sở hữu thực sự
+
+        // 4. Tìm các két mà người này là USER (được chia sẻ)
+        const { data: sharedSafes } = await supabase
+            .from('safe_access')
+            .select('safe_id, access_level')
+            .eq('user_id', user.id);
+
+        // Chuẩn bị dữ liệu trả về (xóa bỏ password_hash cho an toàn)
+        delete user.password_hash;
+
+        res.json({
+            success: true,
+            message: "Đăng nhập thành công!",
+            user: user,
+            roles: {
+                owner_of: ownedSafes ? ownedSafes.map(s => s.safe_id) : [],
+                user_of: sharedSafes ? sharedSafes.map(s => s.safe_id) : []
+            }
+        });
+
+    } catch (err) {
+        console.error("Lỗi đăng nhập:", err);
+        res.status(500).json({ success: false, error: "Lỗi máy chủ" });
+    }
+});
+
+  // ==========================================
+  // API: QUÊN MẬT KHẨU (GỬI MÃ OTP QUA EMAIL)
+  // ==========================================
+  app.post('/api/auth/forgot-password', async (req, res) => {
+      try {
+          const { email } = req.body;
+          if (!email) return res.status(400).json({ success: false, error: "Vui lòng nhập Email" });
+
+          // 1. Kiểm tra tài khoản có tồn tại không
+          const { data: user } = await supabase.from('accounts').select('id, full_name').eq('email', email).single();
+          if (!user) return res.status(404).json({ success: false, error: "Email không tồn tại trong hệ thống" });
+
+          // 2. Tạo mã OTP 6 số ngẫu nhiên
+          const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+          
+          // 3. Đặt thời gian hết hạn (5 phút từ thời điểm hiện tại)
+          const expiresAt = new Date();
+          expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+          // 4. Lưu OTP vào bảng accounts
+          const { error: updateError } = await supabase
+              .from('accounts')
+              .update({ otp_code: otpCode, otp_expires_at: expiresAt.toISOString() })
+              .eq('id', user.id);
+
+          if (updateError) throw updateError;
+
+          // 5. Gửi Email
+          const mailOptions = {
+              from: `"Hệ thống SAFE VMU" <${process.env.EMAIL_USER}>`,
+              to: email,
+              subject: "Mã OTP Đặt Lại Mật Khẩu",
+              html: `
+                  <h3>Xin chào ${user.full_name},</h3>
+                  <p>Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu. Dưới đây là mã xác thực OTP của bạn:</p>
+                  <h2 style="color: #00e5ff; background: #0c1018; padding: 12px; display: inline-block; border-radius: 4px; letter-spacing: 5px;">${otpCode}</h2>
+                  <p>Mã này sẽ hết hạn sau <strong>5 phút</strong>.</p>
+                  <p>Nếu bạn không yêu cầu, vui lòng phớt lờ email này để bảo vệ tài khoản.</p>
+              `
+          };
+
+          await transporter.sendMail(mailOptions);
+          res.json({ success: true, message: "Mã OTP đã được gửi đến email của bạn!" });
+
+      } catch (err) {
+          console.error("Lỗi gửi OTP:", err);
+          res.status(500).json({ success: false, error: "Lỗi hệ thống khi gửi email" });
+      }
+});
+
+  // ==========================================
+  // API: ĐẶT LẠI MẬT KHẨU TÀI KHOẢN (XÁC NHẬN OTP)
+  // ==========================================
+  app.post('/api/auth/reset-password', async (req, res) => {
+      try {
+          const { email, otp, new_password } = req.body;
+          if (!email || !otp || !new_password) return res.status(400).json({ success: false, error: "Vui lòng nhập đủ thông tin" });
+
+          // 1. Tìm user và kiểm tra OTP
+          const { data: user } = await supabase
+              .from('accounts')
+              .select('id, otp_code, otp_expires_at')
+              .eq('email', email)
+              .single();
+
+          if (!user || user.otp_code !== String(otp)) {
+              return res.status(400).json({ success: false, error: "Mã OTP không chính xác" });
+          }
+
+          // 2. Kiểm tra thời gian hết hạn
+          if (new Date() > new Date(user.otp_expires_at)) {
+              return res.status(400).json({ success: false, error: "Mã OTP đã hết hạn. Vui lòng yêu cầu lại." });
+          }
+
+          // 3. Mã hóa mật khẩu mới
+          const saltRounds = 10;
+          const new_password_hash = await bcrypt.hash(new_password, saltRounds);
+
+          // 4. Cập nhật mật khẩu mới và xóa OTP cũ đi (tránh dùng lại)
+          const { error: updateError } = await supabase
+              .from('accounts')
+              .update({ 
+                  password_hash: new_password_hash,
+                  otp_code: null,
+                  otp_expires_at: null 
+              })
+              .eq('id', user.id);
+
+          if (updateError) throw updateError;
+
+          res.json({ success: true, message: "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay." });
+
+      } catch (err) {
+          console.error("Lỗi reset mật khẩu:", err);
+          res.status(500).json({ success: false, error: "Lỗi máy chủ" });
+      }
+});
 
   // ── REST API: Đăng ký khuôn mặt mới ──
   app.post("/api/register-owner", upload.single("photo"), async (req, res) => {

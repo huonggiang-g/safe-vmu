@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng Nhập | SAFE VMU</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="client_auth.js"></script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-title">SYSTEM LOGIN</div>
+            <div id="msg" style="color: var(--red); margin-bottom: 10px; font-size: 0.8rem;"></div>
+            
+            <input type="email" id="email" class="input-hud" placeholder="EMAIL VÀO HỆ THỐNG">
+            <input type="password" id="password" class="input-hud" placeholder="MẬT KHẨU">
+            
+            <button class="btn" style="width: 100%" onclick="login()">KÍCH HOẠT</button>
+            
+            <a href="register.html" class="auth-link">Chưa có mã định danh? Đăng ký</a>
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('msg');
+
+            msg.textContent = "Đang xác thực...";
+            msg.style.color = "var(--accent)";
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    // LƯU TOKEN THEO ĐÚNG BACKEND CỦA BẠN
+                    localStorage.setItem('safeToken', data.token);
+                    localStorage.setItem('safeUser', JSON.stringify(data.user));
+                    localStorage.setItem('safeRoles', JSON.stringify(data.roles || {}));
+                    window.location.href = '/index.html';
+                } else {
+                    msg.textContent = data.error;
+                    msg.style.color = "var(--red)";
+                }
+            } catch (err) {
+                msg.textContent = "Lỗi kết nối Server!";
+                msg.style.color = "var(--red)";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+/* ==========================================
+   FILE: style.css
+   ========================================== */
+:root {
+    --bg: #0c1018;
+    --panel: rgba(0, 20, 30, 0.7);
+    --accent: #00e5ff;
+    --red: #ff4757;
+    --text: #e0f7fa;
+    --font-hud: 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: var(--bg); color: var(--text);
+    font-family: var(--font-hud); margin: 0; padding: 0;
+}
+
+/* THANH ĐIỀU HƯỚNG (NAVBAR) */
+nav {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(0, 0, 0, 0.8); border-bottom: 1px solid var(--accent);
+    padding: 15px 30px; box-shadow: 0 0 15px rgba(0,229,255,0.2);
+}
+.nav-links a {
+    color: var(--text); text-decoration: none; margin-right: 25px;
+    font-size: 1.1rem; text-transform: uppercase; transition: 0.3s;
+}
+.nav-links a:hover, .nav-links a.active { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+.nav-user { font-size: 0.9rem; color: var(--accent); }
+
+/* NÚT BẤM CHUNG */
+.btn {
+    background: rgba(0,229,255,0.1); border: 1px solid var(--accent);
+    color: var(--accent); padding: 10px 20px; font-family: inherit;
+    cursor: pointer; text-transform: uppercase; transition: 0.3s; border-radius: 4px;
+}
+.btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+.btn-danger { border-color: var(--red); color: var(--red); background: rgba(255,71,87,0.1); }
+.btn-danger:hover { background: var(--red); color: #fff; box-shadow: 0 0 15px var(--red); }
+
+/* Ô NHẬP LIỆU (INPUT) */
+.input-hud {
+    width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #444;
+    color: var(--accent); padding: 12px; margin-bottom: 15px;
+    box-sizing: border-box; font-family: inherit; outline: none; transition: 0.3s;
+}
+.input-hud:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,229,255,0.2); }
+
+/* HỘP ĐĂNG NHẬP / FORM */
+.auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.auth-box {
+    background: var(--panel); border: 1px solid var(--accent); padding: 40px;
+    width: 350px; text-align: center; box-shadow: 0 0 30px rgba(0,229,255,0.15);
+}
+.auth-title { font-size: 1.5rem; margin-bottom: 20px; color: var(--accent); letter-spacing: 2px; }
+.auth-link { color: #888; font-size: 0.8rem; cursor: pointer; text-decoration: none; display: block; margin-top: 10px; }
+.auth-link:hover { color: var(--accent); text-decoration: underline; }
+
+/* BẢNG LỊCH SỬ */
+.container { padding: 30px; max-width: 1200px; margin: 0 auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--panel); }
+th, td { border: 1px solid rgba(0,229,255,0.3); padding: 12px; text-align: left; }
+th { background: rgba(0,229,255,0.1); color: var(--accent); text-transform: uppercase; }

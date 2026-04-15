@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng Ký | SAFE VMU</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="client_auth.js"></script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="auth-title">INITIATE ACCOUNT</div>
+            <div id="msg" style="color: var(--red); margin-bottom: 10px; font-size: 0.8rem;"></div>
+            
+            <input type="text" id="name" class="input-hud" placeholder="HỌ VÀ TÊN">
+            <input type="email" id="email" class="input-hud" placeholder="EMAIL">
+            <input type="password" id="password" class="input-hud" placeholder="MẬT KHẨU (>8 KÝ TỰ)">
+            
+            <button class="btn" style="width: 100%" onclick="register()">ĐĂNG KÝ</button>
+            
+            <a href="login.html" class="auth-link">Đã có mã định danh? Đăng nhập</a>
+        </div>
+    </div>
+
+    <script>
+        async function register() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('msg');
+
+            msg.textContent = "Đang thiết lập...";
+            msg.style.color = "var(--accent)";
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // Thêm role='user' để khớp với backend pg của bạn
+                    body: JSON.stringify({ full_name: name, email, password, role: 'user' }) 
+                });
+                const data = await res.json();
+
+                if (data.success || data.account) {
+                    msg.textContent = "Đăng ký thành công! Đang chuyển...";
+                    msg.style.color = "#2ed573";
+                    setTimeout(() => { window.location.href = '/login.html'; }, 1500);
+                } else {
+                    msg.textContent = data.error || "Lỗi đăng ký";
+                    msg.style.color = "var(--red)";
+                }
+            } catch (err) {
+                msg.textContent = "Lỗi kết nối Server!";
+                msg.style.color = "var(--red)";
+            }
+        }
+    </script>
+</body>
+</html>
