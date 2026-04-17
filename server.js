@@ -570,7 +570,7 @@ const upload = multer({
           broadcast({ type: "unlock_sent", name: data.name, timestamp: data.timestamp, source: "server" });
         }
       } catch (e) { /* payload không phải JSON, bỏ qua */ }
-    } } else if (topic === TOPIC_FINGER_STATUS) {
+    } else if (topic === TOPIC_FINGER_STATUS) {
       try {
         const data = JSON.parse(payload.toString());
         // Chỉ cần Broadcast trạng thái để Web hiển thị (Loading, Thành công, Lỗi...)
