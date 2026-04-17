@@ -570,26 +570,13 @@ const upload = multer({
           broadcast({ type: "unlock_sent", name: data.name, timestamp: data.timestamp, source: "server" });
         }
       } catch (e) { /* payload không phải JSON, bỏ qua */ }
-    } else if (topic === TOPIC_FINGER_STATUS) {
+    } } else if (topic === TOPIC_FINGER_STATUS) {
       try {
         const data = JSON.parse(payload.toString());
-        if (data.event === "enroll_ok" && data.id !== undefined) {
-          fingerDB[data.id] = { name: data.name || `User_${data.id}`, enrolledAt: new Date().toISOString() };
-          saveFingerDB();
-          broadcast({ type: "finger_status", ...data, db: fingerDB });
-        } else if (data.event === "delete_ok" && data.id !== undefined) {
-          delete fingerDB[data.id];
-          saveFingerDB();
-          broadcast({ type: "finger_status", ...data, db: fingerDB });
-        } else { broadcast({ type: "finger_status", ...data }); }
+        // Chỉ cần Broadcast trạng thái để Web hiển thị (Loading, Thành công, Lỗi...)
+        broadcast({ type: "finger_status", ...data }); 
       } catch {}
     } else if (topic === TOPIC_LOGS) {
-      try {
-        const log = JSON.parse(payload.toString());
-        broadcast({ type: "log", ...log, timestamp: new Date().toISOString() });
-      } catch {}
-    }
-  });
 
   // ── Face Recognition (FIXED NGROK HEADER) ──
   async function runRecognition(b64Image, timestamp) {
@@ -624,12 +611,6 @@ const upload = multer({
       console.error("[FACE] ❌ Lỗi gọi face_service:", err.message);
       broadcast({ type: "face_service_error", error: err.message, timestamp });
     }
-  }
-
-  function getNextFingerId() {
-    const ids = Object.keys(fingerDB).map(Number);
-    for (let i = 1; i <= 127; i++) { if (!ids.includes(i)) return i; }
-    return 1;
   }
 
   function publishUnlock(name) {
