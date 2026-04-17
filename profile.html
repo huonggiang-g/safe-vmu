@@ -192,7 +192,6 @@
         const msg = JSON.parse(event.data);
         if (msg.type === "finger_status") {
           clearTimeout(fingerTimeout);
-          
           const fs = document.getElementById('fingerStatus');
           const btn = document.getElementById('btnStartFinger');
 
@@ -229,7 +228,7 @@
     const fs = document.getElementById('fingerStatus');
     
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: Web Socket đang Offline.</span>`;
+      fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: Máy chủ Web Socket Offline.</span>`;
       return;
     }
     btn.disabled = true; btn.textContent = "Đang chờ...";
@@ -238,12 +237,12 @@
 
     clearTimeout(fingerTimeout);
     fingerTimeout = setTimeout(() => {
-       fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ESP32 không phản hồi. (Kiểm tra lại Két sắt)</span>`;
+       fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ESP32 không phản hồi. (Kiểm tra Két sắt)</span>`;
        btn.disabled = false; btn.textContent = "Thử lại";
     }, 8000);
   }
 
-  // --- LƯU THÔNG TIN ---
+  // --- LƯU THÔNG TIN CHUNG ---
   async function updateProfile() {
     const newName = document.getElementById('profName').value.trim();
     const newPass = document.getElementById('profPassword').value;
@@ -304,9 +303,8 @@
     } catch (err) {
       btnStart.disabled = false;
       placeholder.textContent = "❌ Lỗi Camera";
-      if (err.name === 'NotAllowedError') showCamMsg("Trình duyệt chặn Camera. Bấm vào biểu tượng ổ khóa 🔒 trên thanh địa chỉ để cấp quyền!", "error");
+      if (err.name === 'NotAllowedError') showCamMsg("Trình duyệt chặn Camera. Vui lòng cấp quyền!", "error");
       else if (err.name === 'NotFoundError') showCamMsg("Không tìm thấy Camera trên thiết bị!", "error");
-      else if (err.name === 'NotReadableError') showCamMsg("Camera đang bị ứng dụng khác chiếm dụng!", "error");
       else showCamMsg("Lỗi Camera: " + err.message, "error");
     }
   }
@@ -372,5 +370,3 @@
     }
   }
 </script>
-</body>
-</html>
