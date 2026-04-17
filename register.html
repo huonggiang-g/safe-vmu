@@ -111,12 +111,14 @@
     </div>
   </div>
 
-  <script>
+<script>
+    // --- CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH ---
     const host = window.location.host || 'localhost:3000';
     const isHttps = window.location.protocol === 'https:';
-    const API_BASE = isHttps ? `https://${host}` : `http://${host}`;
+    // ĐÃ XÓA DÒNG API_BASE BỊ TRÙNG LẶP Ở ĐÂY (Sử dụng chung từ client_auth.js)
     const WS_URL = isHttps ? `wss://${host}` : `ws://${host}`;
 
+    // --- HIỆU ỨNG MẬT KHẨU ---
     function togglePw() {
       const pw = document.getElementById('password');
       pw.type = pw.type === 'password' ? 'text' : 'password';
@@ -205,8 +207,8 @@
       } catch (err) { 
         btnStart.disabled = false;
         document.getElementById('camPlaceholder').textContent = "❌ Lỗi Camera";
-        if (err.name === 'NotAllowedError') showMsg("Trình duyệt chặn Camera. Vui lòng 'Cho phép'!", "error");
-        else if (err.name === 'NotFoundError') showMsg("Không tìm thấy Camera.", "error");
+        if (err.name === 'NotAllowedError') showMsg("Trình duyệt chặn Camera. Vui lòng 'Cho phép' trên thanh địa chỉ!", "error");
+        else if (err.name === 'NotFoundError') showMsg("Không tìm thấy Camera trên thiết bị.", "error");
         else showMsg("Lỗi Camera: " + err.message, "error"); 
       }
     }
