@@ -154,10 +154,8 @@
 </div>
 
 <script>
-  // --- CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH ---
   const host = window.location.host || 'localhost:3000';
   const isHttps = window.location.protocol === 'https:';
-  // ĐÃ XÓA DÒNG API_BASE BỊ TRÙNG LẶP Ở ĐÂY
   const WS_URL = isHttps ? `wss://${host}` : `ws://${host}`;
 
   let currentUser = getCurrentUser(); 
@@ -203,7 +201,6 @@
           } else if (msg.event === "enroll_ok") {
             fs.innerHTML = `<span style="color: var(--green);">✅ Đã quét vân tay (ID: ${msg.id}). Đang lưu Database...</span>`;
             
-            // GỌI API LƯU VÀ CHỜ KẾT QUẢ TỪ DATABASE
             try {
                 const res = await fetch('/api/auth/update-profile', {
                    method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -218,12 +215,20 @@
                     showMainMsg(`Đã cập nhật ID vân tay mới (#${msg.id}) vào cơ sở dữ liệu!`, "success");
                     fs.innerHTML = `<span style="color: var(--green);">✅ Đăng ký thành công trọn vẹn (ID: ${msg.id})</span>`;
                 } else {
-                    throw new Error(dbResult.error);
+                    throw new Error(dbResult.error || "Lỗi lưu dữ liệu");
                 }
             } catch (err) {
-                fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi lưu Database: ${err.message}</span>`;
+                fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi Database: ${err.message}</span>`;
                 btn.disabled = false; btn.textContent = "Thử lại";
             }
+
+          } else if (msg.event === "enroll_fail") {
+            fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ${msg.reason || "Vui lòng thử lại"}</span>`;
+            btn.disabled = false; btn.textContent = "Thử lại";
+          }
+        }
+      } catch (e) {}
+    };
     ws.onclose = () => { setTimeout(connectWS, 3000); };
   }
   connectWS();
@@ -268,12 +273,10 @@
         loadInitialData();
         document.getElementById('profPassword').value = "";
       } else showMainMsg(data.error, "error");
-    } catch (err) { 
-      showMainMsg("Lỗi kết nối tới Server!", "error"); 
-      console.error(err);
-    } 
+    } catch (err) { showMainMsg("Lỗi kết nối tới Server!", "error"); } 
     finally { btn.disabled = false; btn.textContent = "💾 Lưu Thông Tin"; }
   }
+
   // --- CAMERA KHUÔN MẶT ---
   let updateStream = null, updateBlob = null;
 
@@ -372,8 +375,7 @@
         btnSave.disabled = false; btnSave.textContent = "💾 Lưu Khuôn Mặt";
       }
     } catch (err) {
-      showCamMsg("Lỗi kết nối máy chủ! Kiểm tra lại Ngrok.", "error");
-      console.error(err);
+      showCamMsg("Lỗi kết nối máy chủ!", "error");
       btnSave.disabled = false; btnSave.textContent = "💾 Lưu Khuôn Mặt";
     }
   }
