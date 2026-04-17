@@ -201,25 +201,29 @@
           } else if (msg.event === "enroll_step1") {
             fs.innerHTML = `<span style="color: var(--primary);">⏳ Tốt! Nhấc tay ra và đặt lại lần 2...</span>`;
           } else if (msg.event === "enroll_ok") {
-            fs.innerHTML = `<span style="color: var(--green);">✅ Đăng ký thành công (ID: ${msg.id})</span>`;
-            btn.disabled = false; btn.textContent = "Đăng ký lại";
+            fs.innerHTML = `<span style="color: var(--green);">✅ Đã quét vân tay (ID: ${msg.id}). Đang lưu Database...</span>`;
             
-            await fetch(`${API_BASE}/api/auth/update-profile`, {
-               method: 'POST', headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ user_id: currentUser.id, full_name: currentUser.full_name, fingerprint_id: msg.id })
-            });
-            
-            currentUser.fingerprint_id = msg.id;
-            localStorage.setItem('safeUser', JSON.stringify(currentUser));
-            showMainMsg(`Đã cập nhật ID vân tay mới (#${msg.id})!`, "success");
-
-          } else if (msg.event === "enroll_fail") {
-            fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ${msg.reason || "Vui lòng thử lại"}</span>`;
-            btn.disabled = false; btn.textContent = "Thử lại";
-          }
-        }
-      } catch (e) {}
-    };
+            // GỌI API LƯU VÀ CHỜ KẾT QUẢ TỪ DATABASE
+            try {
+                const res = await fetch('/api/auth/update-profile', {
+                   method: 'POST', headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ user_id: currentUser.id, full_name: currentUser.full_name, fingerprint_id: msg.id })
+                });
+                const dbResult = await res.json();
+                
+                if (dbResult.success) {
+                    btn.disabled = false; btn.textContent = "Đăng ký lại";
+                    currentUser.fingerprint_id = msg.id;
+                    localStorage.setItem('safeUser', JSON.stringify(currentUser));
+                    showMainMsg(`Đã cập nhật ID vân tay mới (#${msg.id}) vào cơ sở dữ liệu!`, "success");
+                    fs.innerHTML = `<span style="color: var(--green);">✅ Đăng ký thành công trọn vẹn (ID: ${msg.id})</span>`;
+                } else {
+                    throw new Error(dbResult.error);
+                }
+            } catch (err) {
+                fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi lưu Database: ${err.message}</span>`;
+                btn.disabled = false; btn.textContent = "Thử lại";
+            }
     ws.onclose = () => { setTimeout(connectWS, 3000); };
   }
   connectWS();
