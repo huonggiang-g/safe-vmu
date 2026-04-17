@@ -460,24 +460,41 @@ const upload = multer({
     console.log(`[WS] Client kết nối: ${req.socket.remoteAddress} | Tổng: ${wsClients.size}`);
     ws.send(JSON.stringify({ type: "status", connected: mqttConnected, clients: wsClients.size }));
     ws.on("close", () => { wsClients.delete(ws); });
-    ws.on("message", (data) => {
+    
+    // Đổi thành async để gọi được Database
+    ws.on("message", async (data) => {
       try {
         const msg = JSON.parse(data);
         if (msg.type === "manual_unlock") publishUnlock("MANUAL");
         else if (msg.type === "reload_faces") reloadFaces();
         else if (msg.type === "finger_enroll") {
-          const id   = msg.id || getNextFingerId();
-          const name = msg.name || `User_${id}`;
-          mqttClient.publish(TOPIC_FINGER_CMD, JSON.stringify({ cmd: "enroll", id, name }), { qos: 1 });
+          
+          // 1. TÌM ID VÂN TAY LỚN NHẤT TRONG SUPABASE ĐỂ KHÔNG BỊ GHI ĐÈ
+          const { data: accounts } = await supabase
+              .from('accounts')
+              .select('fingerprint_id')
+              .not('fingerprint_id', 'is', null)
+              .order('fingerprint_id', { ascending: false })
+              .limit(1);
+              
+          let nextId = 1;
+          if (accounts && accounts.length > 0 && accounts[0].fingerprint_id) {
+              nextId = accounts[0].fingerprint_id + 1;
+          }
+          if (nextId > 127) nextId = 1; // AS608 chỉ lưu tối đa 127 vân tay
+
+          const name = msg.name || `User_${nextId}`;
+          mqttClient.publish(TOPIC_FINGER_CMD, JSON.stringify({ cmd: "enroll", id: nextId, name }), { qos: 1 });
+          console.log(`[FINGER] 📤 Đã ra lệnh lấy vân tay mới với ID = ${nextId}`);
+          
         } else if (msg.type === "finger_delete") {
           mqttClient.publish(TOPIC_FINGER_CMD, JSON.stringify({ cmd: "delete", id: msg.id }), { qos: 1 });
-        } else if (msg.type === "finger_list") {
-          ws.send(JSON.stringify({ type: "finger_list", db: fingerDB }));
         }
-      } catch {}
+      } catch (err) {
+          console.error("Lỗi xử lý WS:", err);
+      }
     });
   });
-
   function broadcast(data) {
     const str = typeof data === "string" ? data : JSON.stringify(data);
     wsClients.forEach(ws => { if (ws.readyState === WebSocket.OPEN) ws.send(str); });
