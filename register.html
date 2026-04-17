@@ -7,33 +7,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="client_auth.js"></script>
   <style>
     .pw-seg {
       flex: 1; height: 3px; border-radius: 2px;
       background: var(--border, #e5e7eb);
       transition: background .2s;
     }
-    /* CSS Bổ sung cho Sinh trắc học */
-    .bio-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border, #e5e7eb); }
-    .cam-box { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; position: relative; margin-bottom: 10px; border: 1px solid var(--border, #e5e7eb); }
-    .cam-box video, .cam-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
-    .btn-row { display: flex; gap: 8px; }
-    .btn-sm { flex: 1; padding: 8px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
-    .btn-cam { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
-    .btn-cam:hover { background: #e5e7eb; }
-    .btn-cap { background: #2563eb; color: #fff; }
-    .btn-cap:hover { background: #1d4ed8; }
-    .btn-cap:disabled { background: #9ca3af; cursor: not-allowed; }
-    .btn-retake { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-    .finger-box { text-align: center; padding: 15px; border: 1px dashed var(--border, #d1d5db); border-radius: 8px; background: #f9fafb; margin-top: 15px; }
-    .finger-status { font-size: 0.8rem; color: #6b7280; margin: 8px 0; min-height: 18px; }
-    .finger-ok { color: #16a34a; font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="auth-wrap">
-    <div class="auth-card" style="max-width: 450px;"> <div class="auth-logo">
+    <div class="auth-card">
+      <div class="auth-logo">
         <div class="auth-logo-icon">🛡️</div>
         <div>
           <div class="auth-brand">SAFE VMU</div>
@@ -42,7 +27,7 @@
       </div>
 
       <div class="auth-title">Tạo tài khoản mới</div>
-      <div class="auth-subtitle">Đăng ký để được cấp quyền truy cập hệ thống</div>
+      <div class="auth-subtitle">Nhập thông tin để tạo định danh hệ thống</div>
 
       <div class="msg-box" id="msg"></div>
 
@@ -59,7 +44,7 @@
       <div class="form-group">
         <label class="form-label">Mật khẩu</label>
         <div style="position:relative;">
-          <input type="password" id="password" class="input-field" placeholder="Tối thiểu 8 ký tự" style="padding-right:44px;">
+          <input type="password" id="password" class="input-field" placeholder="Tối thiểu 8 ký tự" style="padding-right:44px;" onkeydown="if(event.key==='Enter') register()">
           <button onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">👁</button>
         </div>
         <div style="margin-top:8px;display:flex;gap:4px;" id="pwStrengthBar">
@@ -69,34 +54,6 @@
           <div class="pw-seg" id="seg4"></div>
         </div>
         <div id="pwStrengthLabel" style="font-size:0.72rem;color:#6b7280;margin-top:4px;"></div>
-      </div>
-
-      <div class="bio-section">
-        
-        <div class="form-group">
-          <label class="form-label">Dữ liệu khuôn mặt (Bắt buộc)</label>
-          <div class="cam-box">
-            <span id="camPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#9ca3af; font-size:0.85rem;">Chưa bật Camera</span>
-            <video id="regVideo" autoplay playsinline muted style="display:none;"></video>
-            <canvas id="regCanvas" style="display:none;"></canvas>
-            <img id="regPreview" style="display:none;">
-          </div>
-          <div class="btn-row">
-            <button class="btn-sm btn-cam" id="btnCam" onclick="startCam()">📷 Mở Cam</button>
-            <button class="btn-sm btn-cap" id="btnCapture" onclick="captureCam()" disabled>⚡ Chụp ảnh</button>
-            <button class="btn-sm btn-retake" id="btnRetake" style="display:none;" onclick="retakeCam()">↺ Chụp lại</button>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Dữ liệu vân tay (Tùy chọn)</label>
-          <div class="finger-box">
-            <div style="font-size: 2rem; line-height: 1;">🫆</div>
-            <div id="fingerDisplay" class="finger-status">Nhấn nút bên dưới để bắt đầu quét trên ESP32</div>
-            <button class="btn-sm btn-cam" onclick="startEnrollFinger()">Bắt đầu quét vân tay</button>
-          </div>
-        </div>
-
       </div>
 
       <button id="btnSubmit" class="btn btn-primary" style="width:100%;padding:12px;font-size:0.95rem;margin-top:15px;" onclick="register()">
@@ -111,6 +68,9 @@
   </div>
 
   <script>
+    // XÁC ĐỊNH ĐÚNG LINK SERVER (TỰ ĐỘNG CHUYỂN LOCAL / CLOUD)
+    const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : `https://${window.location.hostname}`;
+
     // --- HIỆU ỨNG MẬT KHẨU ---
     function togglePw() {
       const pw = document.getElementById('password');
@@ -137,85 +97,9 @@
       const el = document.getElementById('msg');
       el.textContent = text;
       el.className = 'msg-box show ' + type;
-      // Tự cuộn lên đầu để xem thông báo
-      el.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
 
-    // --- WEBSOCKET CHO VÂN TAY ---
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${window.location.host}`);
-    let enrolledFingerId = null;
-    let photoBlob = null;
-    let stream = null;
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "finger_status") {
-          const fd = document.getElementById('fingerDisplay');
-          if (msg.event === "enroll_waiting") fd.innerHTML = "<span style='color:#3b82f6;'>Đang chờ... Hãy đặt ngón tay vào cảm biến</span>";
-          else if (msg.event === "enroll_step1") fd.innerHTML = "<span style='color:#f97316;'>Tốt! Nhấc tay ra và đặt lại lần nữa</span>";
-          else if (msg.event === "enroll_ok") {
-            enrolledFingerId = msg.id;
-            fd.innerHTML = `<span class="finger-ok">✅ Đã lưu vân tay (ID: ${msg.id})</span>`;
-          }
-          else if (msg.event === "enroll_fail") fd.innerHTML = `<span style='color:#ef4444;'>❌ Lỗi: ${msg.reason || "Vui lòng thử lại"}</span>`;
-        }
-      } catch (e) {}
-    };
-
-    function startEnrollFinger() {
-      const name = document.getElementById('name').value.trim();
-      if(!name) { showMsg("Vui lòng nhập Họ và tên trước khi quét vân tay!", "error"); return; }
-      if(ws.readyState !== WebSocket.OPEN) { showMsg("Lỗi: Mất kết nối tới Server!", "error"); return; }
-      
-      document.getElementById('fingerDisplay').textContent = "Đang gửi lệnh tới ESP32...";
-      ws.send(JSON.stringify({ type: "finger_enroll", name: name }));
-    }
-
-    // --- CAMERA KHUÔN MẶT ---
-    async function startCam() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-        document.getElementById('regVideo').srcObject = stream;
-        document.getElementById('regVideo').style.display = 'block';
-        document.getElementById('camPlaceholder').style.display = 'none';
-        document.getElementById('btnCam').disabled = true;
-        document.getElementById('btnCapture').disabled = false;
-      } catch (err) { 
-        showMsg("Không thể mở Camera. Vui lòng cấp quyền trong trình duyệt.", "error"); 
-      }
-    }
-
-    function captureCam() {
-      const video = document.getElementById('regVideo');
-      const canvas = document.getElementById('regCanvas');
-      canvas.width = video.videoWidth || 640; 
-      canvas.height = video.videoHeight || 480;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      
-      canvas.toBlob(blob => {
-        photoBlob = blob;
-        document.getElementById('regPreview').src = URL.createObjectURL(blob);
-        document.getElementById('regPreview').style.display = 'block';
-        video.style.display = 'none';
-        
-        document.getElementById('btnCapture').style.display = 'none';
-        document.getElementById('btnRetake').style.display = 'block';
-        if(stream) stream.getTracks().forEach(t => t.stop());
-      }, 'image/jpeg', 0.95);
-    }
-
-    function retakeCam() {
-      photoBlob = null;
-      document.getElementById('regPreview').style.display = 'none';
-      document.getElementById('btnCapture').style.display = 'block';
-      document.getElementById('btnRetake').style.display = 'none';
-      document.getElementById('btnCam').disabled = false;
-      startCam();
-    }
-
-    // --- GỬI ĐĂNG KÝ TỔNG HỢP ---
+    // --- GỬI YÊU CẦU ĐĂNG KÝ ---
     async function register() {
       const name     = document.getElementById('name').value.trim();
       const email    = document.getElementById('email').value.trim();
@@ -224,35 +108,32 @@
 
       if (!name || !email || !password) { showMsg('Vui lòng điền đầy đủ thông tin cơ bản.', 'error'); return; }
       if (password.length < 8) { showMsg('Mật khẩu phải có ít nhất 8 ký tự.', 'error'); return; }
-      if (!photoBlob) { showMsg('Vui lòng chụp ảnh khuôn mặt!', 'error'); return; }
 
-      showMsg('Đang trích xuất dữ liệu AI và thiết lập tài khoản...', 'loading');
+      showMsg('Đang tạo tài khoản...', 'loading');
       btnSubmit.disabled = true;
 
-      const formData = new FormData();
-      formData.append('full_name', name);
-      formData.append('email', email);
-      formData.append('password', password);
-      if (enrolledFingerId) formData.append('fingerprint_id', enrolledFingerId);
-      formData.append('photo', photoBlob, `face_${Date.now()}.jpg`);
-
       try {
-        // Gửi qua API All-in-one đã cấu hình ở server.js
-        const res = await fetch(`${API_BASE}/auth/register_full`, {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: name,
+            email: email,
+            password: password
+          })
         });
+        
         const data = await res.json();
 
         if (data.success || data.user) {
           showMsg('Đăng ký thành công! Đang chuyển đến trang đăng nhập...', 'success');
-          setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+          setTimeout(() => { window.location.href = '/login.html'; }, 1500);
         } else {
           showMsg(data.error || 'Lỗi đăng ký, vui lòng thử lại.', 'error');
           btnSubmit.disabled = false;
         }
       } catch (err) {
-        showMsg('Lỗi kết nối máy chủ!', 'error');
+        showMsg('Lỗi kết nối tới máy chủ! Vui lòng kiểm tra lại mạng.', 'error');
         btnSubmit.disabled = false;
       }
     }
