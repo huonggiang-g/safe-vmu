@@ -99,52 +99,53 @@ const upload = multer({
  // ==========================================
   // API: ĐĂNG KÝ TÀI KHOẢN CƠ BẢN
   // ==========================================
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', upload.single('photo'), async (req, res) => {
       try {
-          const { full_name, email, password } = req.body;
+          const { full_name, email, password, fingerprint_id } = req.body;
 
-          if (!full_name || !email || !password) {
-              return res.status(400).json({ success: false, error: "Vui lòng nhập đủ Họ tên, Email và Mật khẩu" });
+          if (!full_name || !email || !password) return res.status(400).json({ success: false, error: "Thiếu thông tin" });
+          if (password.length < 8) return res.status(400).json({ success: false, error: "Mật khẩu < 8 ký tự" });
+
+          const { data: existingUser } = await supabase.from('accounts').select('id').eq('email', email).maybeSingle();
+          if (existingUser) return res.status(409).json({ success: false, error: "Email đã tồn tại" });
+
+          let faceVector = null;
+          if (req.file) {
+              const b64Image = req.file.buffer.toString("base64");
+              const extractRes = await fetch(FACE_EXTRACT_URL, {
+                  method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                  body: JSON.stringify({ image: b64Image }),
+              });
+              const extractData = await extractRes.json();
+              if (extractData.success) faceVector = extractData.vector;
+              else throw new Error("AI không nhận diện được khuôn mặt.");
           }
 
-          if (password.length < 8) {
-              return res.status(400).json({ success: false, error: "Mật khẩu phải có ít nhất 8 ký tự" });
-          }
+          const password_hash = await bcrypt.hash(password, 10);
+          
+          // Ép kiểu Fingerprint ID sang số nguyên (Int) trước khi đưa vào Supabase
+          const fpIdParsed = parseInt(fingerprint_id);
+          const finalFingerprintId = isNaN(fpIdParsed) ? null : fpIdParsed;
 
-          // Kiểm tra xem Email đã tồn tại chưa
-          const { data: existingUser } = await supabase
-              .from('accounts')
-              .select('id')
-              .eq('email', email)
-              .maybeSingle();
-
-          if (existingUser) {
-              return res.status(409).json({ success: false, error: "Email này đã được sử dụng" });
-          }
-
-          // Mã hóa mật khẩu
-          const saltRounds = 10;
-          const password_hash = await bcrypt.hash(password, saltRounds);
-
-          // Tạo tài khoản (Chưa có face và vân tay)
           const { data: newUser, error: insertError } = await supabase
               .from('accounts')
               .insert([{ 
-                  full_name: full_name, 
-                  email: email, 
-                  password_hash: password_hash, 
-                  role: 'user' 
-              }])
-              .select('id, full_name, email, role')
-              .single();
+                  full_name, email, password_hash, role: 'user',
+                  fingerprint_id: finalFingerprintId, 
+                  face_vector: faceVector
+              }]).select('id, full_name, email, role').single();
 
           if (insertError) throw insertError;
 
-          res.json({ success: true, message: "Đăng ký thành công! Vui lòng đăng nhập.", user: newUser });
-
+          if (req.file) {
+              const personDir = path.join(DATA_FACE_DIR, `user_${newUser.id}`);
+              if (!fs.existsSync(personDir)) fs.mkdirSync(personDir, { recursive: true });
+              fs.writeFileSync(path.join(personDir, `${Date.now()}.jpg`), req.file.buffer);
+              try { await fetch(FACE_RELOAD_URL, { method: "POST", headers: { "ngrok-skip-browser-warning": "true" }}); } catch(e) {}
+          }
+          res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
       } catch (err) {
-          console.error("Lỗi đăng ký:", err);
-          res.status(500).json({ success: false, error: "Lỗi máy chủ khi đăng ký" });
+          res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
       }
   });
   // ==========================================
@@ -223,34 +224,26 @@ const upload = multer({
   app.post('/api/auth/update-profile', async (req, res) => {
       try {
           const { user_id, full_name, new_password, fingerprint_id } = req.body;
-
-          if (!user_id || !full_name) {
-              return res.status(400).json({ success: false, error: "Thiếu thông tin bắt buộc" });
-          }
+          if (!user_id || !full_name) return res.status(400).json({ success: false, error: "Thiếu thông tin" });
 
           let updateData = { full_name: full_name };
           
-          // NẾU CÓ DỮ LIỆU VÂN TAY MỚI GỬI LÊN THÌ LƯU VÀO
-          if (fingerprint_id !== undefined) {
-              updateData.fingerprint_id = fingerprint_id;
+          // Ép kiểu ID Vân tay sang số nguyên (Int)
+          if (fingerprint_id !== undefined && fingerprint_id !== null) {
+              updateData.fingerprint_id = parseInt(fingerprint_id);
           }
 
           if (new_password && new_password.trim() !== "") {
-              if (new_password.length < 8) return res.status(400).json({ success: false, error: "Mật khẩu mới phải >= 8 ký tự" });
-              const saltRounds = 10;
-              updateData.password_hash = await bcrypt.hash(new_password, saltRounds);
+              if (new_password.length < 8) return res.status(400).json({ success: false, error: "Mật khẩu < 8 ký tự" });
+              updateData.password_hash = await bcrypt.hash(new_password, 10);
           }
 
           const { data: updatedUser, error: updateError } = await supabase
-              .from('accounts')
-              .update(updateData)
-              .eq('id', user_id)
-              .select('id, full_name, email, role, fingerprint_id')
-              .single();
+              .from('accounts').update(updateData).eq('id', user_id)
+              .select('id, full_name, email, role, fingerprint_id').single();
 
           if (updateError) throw updateError;
           res.json({ success: true, message: "Cập nhật hồ sơ thành công!", user: updatedUser });
-
       } catch (err) {
           res.status(500).json({ success: false, error: "Lỗi máy chủ khi cập nhật" });
       }
