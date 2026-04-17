@@ -154,10 +154,13 @@
 </div>
 
 <script>
-  const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : `https://${window.location.hostname}`;
-  let currentUser = getCurrentUser(); // Lấy từ client_auth.js
+  const host = window.location.host || 'localhost:3000';
+  const isHttps = window.location.protocol === 'https:';
+  const API_BASE = isHttps ? `https://${host}` : `http://${host}`;
+  const WS_URL = isHttps ? `wss://${host}` : `ws://${host}`;
 
-  // 1. TẢI DỮ LIỆU BAN ĐẦU
+  let currentUser = getCurrentUser(); 
+
   function loadInitialData() {
     if (currentUser) {
       document.getElementById('userNameDisplay').textContent = currentUser.full_name;
@@ -166,7 +169,6 @@
 
       const fs = document.getElementById('fingerStatus');
       const btnFinger = document.getElementById('btnStartFinger');
-      
       if (currentUser.fingerprint_id) {
         fs.innerHTML = `<span style="color: var(--green);">✓ Đã lưu (ID: ${currentUser.fingerprint_id})</span>`;
         btnFinger.textContent = "Đăng ký lại";
@@ -180,57 +182,68 @@
     el.textContent = text; el.className = 'msg-box show ' + type;
   }
 
-  // 2. KẾT NỐI WEBSOCKET CHO VÂN TAY
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${protocol}//${window.location.host}`);
-
-  ws.onmessage = async (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "finger_status") {
-        const fs = document.getElementById('fingerStatus');
-        const btn = document.getElementById('btnStartFinger');
-
-        if (msg.event === "enroll_waiting") {
-          fs.innerHTML = `<span style="color: var(--orange);">⏳ Đã kết nối AS608! Hãy đặt ngón tay lần 1...</span>`;
-        } else if (msg.event === "enroll_step1") {
-          fs.innerHTML = `<span style="color: var(--primary);">⏳ Tốt! Nhấc tay ra và đặt lại lần 2...</span>`;
-        } else if (msg.event === "enroll_ok") {
-          fs.innerHTML = `<span style="color: var(--green);">✅ Đăng ký thành công (ID: ${msg.id})</span>`;
-          btn.disabled = false; btn.textContent = "Đăng ký lại";
+  // --- WEBSOCKET CHO VÂN TAY ---
+  let ws;
+  let fingerTimeout;
+  function connectWS() {
+    ws = new WebSocket(WS_URL);
+    ws.onmessage = async (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "finger_status") {
+          clearTimeout(fingerTimeout);
           
-          // GỌI API LƯU ID VÂN TAY VÀO DATABASE
-          await fetch(`${API_BASE}/api/auth/update-profile`, {
-             method: 'POST', headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ user_id: currentUser.id, full_name: currentUser.full_name, fingerprint_id: msg.id })
-          });
-          
-          currentUser.fingerprint_id = msg.id;
-          localStorage.setItem('safeUser', JSON.stringify(currentUser));
-          showMainMsg(`Đã cập nhật ID vân tay mới (#${msg.id}) vào hệ thống!`, "success");
+          const fs = document.getElementById('fingerStatus');
+          const btn = document.getElementById('btnStartFinger');
 
-        } else if (msg.event === "enroll_fail") {
-          fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ${msg.reason || "Vui lòng thử lại"}</span>`;
-          btn.disabled = false; btn.textContent = "Thử lại";
+          if (msg.event === "enroll_waiting") {
+            fs.innerHTML = `<span style="color: var(--orange);">⏳ AS608 Sẵn sàng! Đặt ngón tay lần 1...</span>`;
+          } else if (msg.event === "enroll_step1") {
+            fs.innerHTML = `<span style="color: var(--primary);">⏳ Tốt! Nhấc tay ra và đặt lại lần 2...</span>`;
+          } else if (msg.event === "enroll_ok") {
+            fs.innerHTML = `<span style="color: var(--green);">✅ Đăng ký thành công (ID: ${msg.id})</span>`;
+            btn.disabled = false; btn.textContent = "Đăng ký lại";
+            
+            await fetch(`${API_BASE}/api/auth/update-profile`, {
+               method: 'POST', headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ user_id: currentUser.id, full_name: currentUser.full_name, fingerprint_id: msg.id })
+            });
+            
+            currentUser.fingerprint_id = msg.id;
+            localStorage.setItem('safeUser', JSON.stringify(currentUser));
+            showMainMsg(`Đã cập nhật ID vân tay mới (#${msg.id})!`, "success");
+
+          } else if (msg.event === "enroll_fail") {
+            fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ${msg.reason || "Vui lòng thử lại"}</span>`;
+            btn.disabled = false; btn.textContent = "Thử lại";
+          }
         }
-      }
-    } catch (e) {}
-  };
+      } catch (e) {}
+    };
+    ws.onclose = () => { setTimeout(connectWS, 3000); };
+  }
+  connectWS();
 
   function startUpdateFinger() {
     const btn = document.getElementById('btnStartFinger');
     const fs = document.getElementById('fingerStatus');
     
-    if (ws.readyState !== WebSocket.OPEN) {
-      fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: Máy chủ đang Offline.</span>`;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: Web Socket đang Offline.</span>`;
       return;
     }
-    btn.disabled = true; btn.textContent = "Đang quét...";
-    fs.innerHTML = `<span style="color: var(--primary);">⏳ Đang kết nối cảm biến AS608...</span>`;
+    btn.disabled = true; btn.textContent = "Đang chờ...";
+    fs.innerHTML = `<span style="color: var(--primary);">⏳ Đang gọi thiết bị ESP32...</span>`;
     ws.send(JSON.stringify({ type: "finger_enroll", name: currentUser.full_name }));
+
+    clearTimeout(fingerTimeout);
+    fingerTimeout = setTimeout(() => {
+       fs.innerHTML = `<span style="color: var(--red);">❌ Lỗi: ESP32 không phản hồi. (Kiểm tra lại Két sắt)</span>`;
+       btn.disabled = false; btn.textContent = "Thử lại";
+    }, 8000);
   }
 
-  // 3. API LƯU THÔNG TIN CHUNG
+  // --- LƯU THÔNG TIN ---
   async function updateProfile() {
     const newName = document.getElementById('profName').value.trim();
     const newPass = document.getElementById('profPassword').value;
@@ -255,7 +268,7 @@
     finally { btn.disabled = false; btn.textContent = "💾 Lưu Thông Tin"; }
   }
 
-  // 4. LUỒNG CHỤP LẠI KHUÔN MẶT
+  // --- CAMERA KHUÔN MẶT ---
   let updateStream = null, updateBlob = null;
 
   function openCamModal() { document.getElementById('camModal').classList.add('open'); }
@@ -274,10 +287,12 @@
     const placeholder = document.getElementById('camPlaceholder');
     
     btnStart.disabled = true;
-    placeholder.textContent = "⏳ Đang kết nối phần cứng Camera...";
+    placeholder.textContent = "⏳ Đang kết nối Camera...";
     showCamMsg("⏳ Đang yêu cầu quyền mở Camera...", "loading");
 
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Trình duyệt không hỗ trợ Camera.");
+      
       updateStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
       document.getElementById('updVideo').srcObject = updateStream;
       document.getElementById('updVideo').style.display = 'block';
@@ -288,8 +303,11 @@
       showCamMsg("✅ Kết nối Camera thành công!", "success");
     } catch (err) {
       btnStart.disabled = false;
-      placeholder.textContent = "❌ Mất kết nối Camera";
-      showCamMsg("Lỗi: Không thể mở Camera. Hãy cấp quyền truy cập trong trình duyệt!", "error");
+      placeholder.textContent = "❌ Lỗi Camera";
+      if (err.name === 'NotAllowedError') showCamMsg("Trình duyệt chặn Camera. Bấm vào biểu tượng ổ khóa 🔒 trên thanh địa chỉ để cấp quyền!", "error");
+      else if (err.name === 'NotFoundError') showCamMsg("Không tìm thấy Camera trên thiết bị!", "error");
+      else if (err.name === 'NotReadableError') showCamMsg("Camera đang bị ứng dụng khác chiếm dụng!", "error");
+      else showCamMsg("Lỗi Camera: " + err.message, "error");
     }
   }
 
@@ -332,7 +350,7 @@
     if (!updateBlob) return;
     const btnSave = document.getElementById('btnCamSave');
     btnSave.disabled = true; btnSave.textContent = "⏳ Đang lưu...";
-    showCamMsg("⏳ Đang xử lý dữ liệu AI và đồng bộ hệ thống...", "loading");
+    showCamMsg("⏳ Đang xử lý AI và đồng bộ...", "loading");
 
     const formData = new FormData();
     formData.append('user_id', currentUser.id);
