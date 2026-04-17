@@ -96,54 +96,57 @@ const upload = multer({
   app.use(express.json({ limit: "10mb" }));
   app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-  // ==========================================
-  // API: ĐĂNG KÝ USER
+ // ==========================================
+  // API: ĐĂNG KÝ TÀI KHOẢN CƠ BẢN
   // ==========================================
   app.post('/api/auth/register', async (req, res) => {
       try {
           const { full_name, email, password } = req.body;
+
           if (!full_name || !email || !password) {
               return res.status(400).json({ success: false, error: "Vui lòng nhập đủ Họ tên, Email và Mật khẩu" });
           }
 
-          const { data: existingUser, error: checkError } = await supabase
-              .from('accounts').select('id').eq('email', email).single();
+          if (password.length < 8) {
+              return res.status(400).json({ success: false, error: "Mật khẩu phải có ít nhất 8 ký tự" });
+          }
+
+          // Kiểm tra xem Email đã tồn tại chưa
+          const { data: existingUser } = await supabase
+              .from('accounts')
+              .select('id')
+              .eq('email', email)
+              .maybeSingle();
 
           if (existingUser) {
               return res.status(409).json({ success: false, error: "Email này đã được sử dụng" });
           }
 
+          // Mã hóa mật khẩu
           const saltRounds = 10;
           const password_hash = await bcrypt.hash(password, saltRounds);
 
+          // Tạo tài khoản (Chưa có face và vân tay)
           const { data: newUser, error: insertError } = await supabase
               .from('accounts')
-              .insert([{ full_name: full_name, email: email, password_hash: password_hash, role: 'user' }])
-              .select('id, full_name, email, role').single();
+              .insert([{ 
+                  full_name: full_name, 
+                  email: email, 
+                  password_hash: password_hash, 
+                  role: 'user' 
+              }])
+              .select('id, full_name, email, role')
+              .single();
 
           if (insertError) throw insertError;
-          res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
+
+          res.json({ success: true, message: "Đăng ký thành công! Vui lòng đăng nhập.", user: newUser });
 
       } catch (err) {
-          if (err.code === 'PGRST116') {
-                try {
-                     const saltRounds = 10;
-                     const password_hash = await bcrypt.hash(req.body.password, saltRounds);
-                     const { data: newUser, error: insertError } = await supabase
-                         .from('accounts')
-                         .insert([{ full_name: req.body.full_name, email: req.body.email, password_hash: password_hash, role: 'user' }])
-                         .select('id, full_name, email, role').single();
-
-                     if (insertError) throw insertError;
-                     return res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
-                } catch (innerErr) {
-                     return res.status(500).json({ success: false, error: "Lỗi tạo tài khoản" });
-                }
-          }
-          res.status(500).json({ success: false, error: "Lỗi máy chủ cục bộ" });
+          console.error("Lỗi đăng ký:", err);
+          res.status(500).json({ success: false, error: "Lỗi máy chủ khi đăng ký" });
       }
   });
-
   // ==========================================
   // API: ĐĂNG NHẬP
   // ==========================================
@@ -392,6 +395,24 @@ const upload = multer({
     } catch (err) { return res.status(500).json({ error: err.message }); }
   });
 
+  // ==========================================
+  // API: LỊCH SỬ MỞ KHÓA
+  // ==========================================
+  app.get("/api/unlock-history", async (req, res) => {
+    try {
+      const safe_id = req.query.safe_id || "SAFE_VMU_01";
+      const limit   = parseInt(req.query.limit) || 50;
+      const { data, error } = await supabase
+        .from('unlock_history')
+        .select('*')
+        .eq('safe_id', safe_id)
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      res.json({ success: true, history: data, total: data.length });
+    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+  });
+
   app.get("/api/face-list", (req, res) => {
     try {
       const people = [];
@@ -475,7 +496,7 @@ const upload = multer({
   mqttClient.on("connect", () => {
     mqttConnected = true;
     console.log("[MQTT] ✅ Đã kết nối HiveMQ");
-    mqttClient.subscribe([TOPIC_PHOTO, TOPIC_LOGS, TOPIC_FINGER_STATUS], { qos: 1 });
+    mqttClient.subscribe([TOPIC_PHOTO, TOPIC_LOGS, TOPIC_FINGER_STATUS, TOPIC_CMD], { qos: 1 });
     broadcast({ type: "status", connected: true, clients: wsClients.size });
   });
 
@@ -497,6 +518,41 @@ const upload = multer({
         lastRecognizeTime = now;
         await runRecognition(b64, ts);
       }
+    } else if (topic === TOPIC_CMD) {
+      // Nhận UNLOCK_REQUEST từ thiết bị → lưu lịch sử → publish lại UNLOCK
+      try {
+        const data = JSON.parse(payload.toString());
+        console.log(`[CMD] 📩 Nhận từ safe1/cmd:`, data);
+
+        if (data.cmd === "UNLOCK_REQUEST") {
+          const ts = new Date().toISOString();
+          console.log(`[UNLOCK] ✅ Yêu cầu mở khóa từ thiết bị: ${data.safe_id}, lý do: ${data.reason}`);
+
+          // Lưu lịch sử mở khóa vào Supabase
+          try {
+            await supabase.from('unlock_history').insert([{
+              safe_id:   data.safe_id || "SAFE_VMU_01",
+              reason:    data.reason  || "unknown",
+              method:    data.reason && data.reason.includes("Mat") ? "face" : "fingerprint",
+              timestamp: ts,
+              source:    "device"
+            }]);
+            console.log(`[SUPABASE] ✅ Đã lưu lịch sử mở khóa`);
+          } catch (dbErr) {
+            console.error("[SUPABASE] ❌ Lưu lịch sử lỗi:", dbErr.message);
+          }
+
+          // Publish lại lệnh UNLOCK để thiết bị mở relay
+          const unlockPayload = JSON.stringify({ cmd: "UNLOCK", reason: data.reason, timestamp: ts });
+          mqttClient.publish(TOPIC_CMD, unlockPayload, { qos: 1 });
+          broadcast({ type: "unlock_sent", reason: data.reason, timestamp: ts, source: "device" });
+
+        } else if (data.cmd === "UNLOCK") {
+          // Lệnh UNLOCK do server tự publish (manual hoặc face recognition)
+          // Chỉ broadcast cho dashboard, thiết bị tự xử lý
+          broadcast({ type: "unlock_sent", name: data.name, timestamp: data.timestamp, source: "server" });
+        }
+      } catch (e) { /* payload không phải JSON, bỏ qua */ }
     } else if (topic === TOPIC_FINGER_STATUS) {
       try {
         const data = JSON.parse(payload.toString());
