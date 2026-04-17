@@ -252,7 +252,7 @@
 
     btn.disabled = true; btn.textContent = "⏳ Đang lưu...";
     try {
-      const res = await fetch(`${API_BASE}/api/auth/update-profile`, {
+      const res = await fetch('/api/auth/update-profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUser.id, full_name: newName, new_password: newPass })
       });
@@ -264,10 +264,12 @@
         loadInitialData();
         document.getElementById('profPassword').value = "";
       } else showMainMsg(data.error, "error");
-    } catch (err) { showMainMsg("Lỗi kết nối tới Server!", "error"); } 
+    } catch (err) { 
+      showMainMsg("Lỗi kết nối tới Server!", "error"); 
+      console.error(err);
+    } 
     finally { btn.disabled = false; btn.textContent = "💾 Lưu Thông Tin"; }
   }
-
   // --- CAMERA KHUÔN MẶT ---
   let updateStream = null, updateBlob = null;
 
@@ -356,7 +358,7 @@
     formData.append('photo', updateBlob, `face_update_${Date.now()}.jpg`);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/update-face`, { method: 'POST', body: formData });
+      const res = await fetch('/api/auth/update-face', { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         showCamMsg("✅ Cập nhật khuôn mặt thành công!", "success");
@@ -366,7 +368,8 @@
         btnSave.disabled = false; btnSave.textContent = "💾 Lưu Khuôn Mặt";
       }
     } catch (err) {
-      showCamMsg("Lỗi kết nối máy chủ!", "error");
+      showCamMsg("Lỗi kết nối máy chủ! Kiểm tra lại Ngrok.", "error");
+      console.error(err);
       btnSave.disabled = false; btnSave.textContent = "💾 Lưu Khuôn Mặt";
     }
   }
