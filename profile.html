@@ -229,7 +229,7 @@
   let updateStream = null;
   let updateBlob = null;
 
-  function openCamModal() { document.getElementById('camModal').classList.add('open'); startUpdateCam(); }
+  function openCamModal() { document.getElementById('camModal').classList.add('open'); startUpdateCam();}
   function closeCamModal() { 
     if(updateStream) updateStream.getTracks().forEach(t => t.stop());
     document.getElementById('camModal').classList.remove('open'); 
