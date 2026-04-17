@@ -154,9 +154,10 @@
 </div>
 
 <script>
+  // --- CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH ---
   const host = window.location.host || 'localhost:3000';
   const isHttps = window.location.protocol === 'https:';
-  const API_BASE = isHttps ? `https://${host}` : `http://${host}`;
+  // ĐÃ XÓA DÒNG API_BASE BỊ TRÙNG LẶP Ở ĐÂY
   const WS_URL = isHttps ? `wss://${host}` : `ws://${host}`;
 
   let currentUser = getCurrentUser(); 
