@@ -454,7 +454,6 @@ const upload = multer({
     ws.send(JSON.stringify({ type: "status", connected: mqttConnected, clients: wsClients.size }));
     ws.on("close", () => { wsClients.delete(ws); });
     
-    // Đổi thành async để gọi được Database
     ws.on("message", async (data) => {
       try {
         const msg = JSON.parse(data);
@@ -462,23 +461,33 @@ const upload = multer({
         else if (msg.type === "reload_faces") reloadFaces();
         else if (msg.type === "finger_enroll") {
           
-          // 1. TÌM ID VÂN TAY LỚN NHẤT TRONG SUPABASE ĐỂ KHÔNG BỊ GHI ĐÈ
-          const { data: accounts } = await supabase
+          console.log("[FINGER] Đang rà soát Database để tìm ID lớn nhất...");
+          
+          // 1. Tải toàn bộ cột fingerprint_id về
+          const { data: accounts, error: dbErr } = await supabase
               .from('accounts')
-              .select('fingerprint_id')
-              .not('fingerprint_id', 'is', null)
-              .order('fingerprint_id', { ascending: false })
-              .limit(1);
-              
+              .select('fingerprint_id');
+
+          if (dbErr) console.error("[FINGER] Lỗi đọc DB:", dbErr);
+
+          // 2. Dùng JavaScript lọc và tìm số lớn nhất (Bỏ qua hoàn toàn các ô trống/NULL)
           let nextId = 1;
-          if (accounts && accounts.length > 0 && accounts[0].fingerprint_id) {
-              nextId = accounts[0].fingerprint_id + 1;
+          if (accounts && accounts.length > 0) {
+              let maxId = 0;
+              accounts.forEach(acc => {
+                  // Chỉ lấy các ô có số và so sánh tìm số lớn nhất
+                  if (acc.fingerprint_id !== null && acc.fingerprint_id > maxId) {
+                      maxId = acc.fingerprint_id;
+                  }
+              });
+              nextId = maxId + 1; // Lấy ID tiếp theo
           }
-          if (nextId > 127) nextId = 1; // AS608 chỉ lưu tối đa 127 vân tay
+          
+          if (nextId > 127) nextId = 1; // Cảm biến AS608 chỉ chứa tối đa 127 vân tay
 
           const name = msg.name || `User_${nextId}`;
           mqttClient.publish(TOPIC_FINGER_CMD, JSON.stringify({ cmd: "enroll", id: nextId, name }), { qos: 1 });
-          console.log(`[FINGER] 📤 Đã ra lệnh lấy vân tay mới với ID = ${nextId}`);
+          console.log(`[FINGER] 📤 Database phản hồi: Ra lệnh lấy vân tay mới với ID = ${nextId}`);
           
         } else if (msg.type === "finger_delete") {
           mqttClient.publish(TOPIC_FINGER_CMD, JSON.stringify({ cmd: "delete", id: msg.id }), { qos: 1 });
