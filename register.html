@@ -112,13 +112,10 @@
   </div>
 
 <script>
-    // --- CẤU HÌNH ĐƯỜNG DẪN THÔNG MINH ---
     const host = window.location.host || 'localhost:3000';
     const isHttps = window.location.protocol === 'https:';
-    // ĐÃ XÓA DÒNG API_BASE BỊ TRÙNG LẶP Ở ĐÂY (Sử dụng chung từ client_auth.js)
     const WS_URL = isHttps ? `wss://${host}` : `ws://${host}`;
 
-    // --- HIỆU ỨNG MẬT KHẨU ---
     function togglePw() {
       const pw = document.getElementById('password');
       pw.type = pw.type === 'password' ? 'text' : 'password';
@@ -253,7 +250,7 @@
       if (!name || !email || !password) { showMsg('Vui lòng điền đầy đủ thông tin cơ bản.', 'error'); return; }
       if (password.length < 8) { showMsg('Mật khẩu phải có ít nhất 8 ký tự.', 'error'); return; }
 
-      showMsg('Đang tạo tài khoản & xử lý AI...', 'loading');
+      showMsg('Đang tạo tài khoản...', 'loading');
       btnSubmit.disabled = true;
 
       const formData = new FormData();
@@ -265,10 +262,8 @@
       if (photoBlob) formData.append('photo', photoBlob, `face_${Date.now()}.jpg`);
 
       try {
-        // Dùng đường dẫn tương đối (chỉ gọi /api/...) cực kỳ an toàn
         const res = await fetch('/api/auth/register', { method: 'POST', body: formData });
         const data = await res.json();
-
         if (data.success || data.user) {
           showMsg('Đăng ký thành công! Đang chuyển trang...', 'success');
           setTimeout(() => { window.location.href = '/login.html'; }, 2000);
@@ -277,8 +272,7 @@
           btnSubmit.disabled = false;
         }
       } catch (err) {
-        showMsg('Lỗi kết nối máy chủ! Vui lòng kiểm tra lại mạng hoặc Ngrok.', 'error');
-        console.error(err);
+        showMsg('Lỗi kết nối máy chủ!', 'error');
         btnSubmit.disabled = false;
       }
     }
