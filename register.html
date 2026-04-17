@@ -253,7 +253,7 @@
       if (!name || !email || !password) { showMsg('Vui lòng điền đầy đủ thông tin cơ bản.', 'error'); return; }
       if (password.length < 8) { showMsg('Mật khẩu phải có ít nhất 8 ký tự.', 'error'); return; }
 
-      showMsg('Đang tạo tài khoản...', 'loading');
+      showMsg('Đang tạo tài khoản & xử lý AI...', 'loading');
       btnSubmit.disabled = true;
 
       const formData = new FormData();
@@ -265,8 +265,10 @@
       if (photoBlob) formData.append('photo', photoBlob, `face_${Date.now()}.jpg`);
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', body: formData });
+        // Dùng đường dẫn tương đối (chỉ gọi /api/...) cực kỳ an toàn
+        const res = await fetch('/api/auth/register', { method: 'POST', body: formData });
         const data = await res.json();
+
         if (data.success || data.user) {
           showMsg('Đăng ký thành công! Đang chuyển trang...', 'success');
           setTimeout(() => { window.location.href = '/login.html'; }, 2000);
@@ -275,7 +277,8 @@
           btnSubmit.disabled = false;
         }
       } catch (err) {
-        showMsg('Lỗi kết nối máy chủ!', 'error');
+        showMsg('Lỗi kết nối máy chủ! Vui lòng kiểm tra lại mạng hoặc Ngrok.', 'error');
+        console.error(err);
         btnSubmit.disabled = false;
       }
     }
