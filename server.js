@@ -191,7 +191,70 @@ const upload = multer({
           res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
       }
   });
+    // ==========================================
+  // API: QUÊN MẬT KHẨU (GỬI MÃ OTP)
+  // ==========================================
+  app.post('/api/auth/forgot-password', async (req, res) => {
+      try {
+          const { email } = req.body;
+          if (!email) return res.status(400).json({ success: false, error: "Vui lòng nhập Email" });
 
+          const { data: user } = await supabase.from('accounts').select('id, full_name').eq('email', email).single();
+          if (!user) return res.status(404).json({ success: false, error: "Email không tồn tại trong hệ thống" });
+
+          const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+          const expiresAt = new Date();
+          expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+          const { error: updateError } = await supabase
+              .from('accounts').update({ otp_code: otpCode, otp_expires_at: expiresAt.toISOString() }).eq('id', user.id);
+
+          if (updateError) throw updateError;
+
+          const mailOptions = {
+              from: `"Hệ thống SAFE VMU" <${process.env.EMAIL_USER}>`,
+              to: email,
+              subject: "Mã OTP Đặt Lại Mật Khẩu",
+              html: `
+                  <h3>Xin chào ${user.full_name},</h3>
+                  <p>Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu. Dưới đây là mã xác thực OTP của bạn:</p>
+                  <h2 style="color: #00e5ff; background: #0c1018; padding: 12px; display: inline-block; border-radius: 4px; letter-spacing: 5px;">${otpCode}</h2>
+                  <p>Mã này sẽ hết hạn sau <strong>5 phút</strong>.</p>
+                  <p>Nếu bạn không yêu cầu, vui lòng phớt lờ email này để bảo vệ tài khoản.</p>
+              `
+          };
+
+          await transporter.sendMail(mailOptions);
+          res.json({ success: true, message: "Mã OTP đã được gửi đến email của bạn!" });
+
+      } catch (err) { res.status(500).json({ success: false, error: "Lỗi hệ thống khi gửi email" }); }
+  });
+
+  // ==========================================
+  // API: ĐẶT LẠI MẬT KHẨU TÀI KHOẢN
+  // ==========================================
+  app.post('/api/auth/reset-password', async (req, res) => {
+      try {
+          const { email, otp, new_password } = req.body;
+          if (!email || !otp || !new_password) return res.status(400).json({ success: false, error: "Vui lòng nhập đủ thông tin" });
+
+          const { data: user } = await supabase
+              .from('accounts').select('id, otp_code, otp_expires_at').eq('email', email).single();
+
+          if (!user || user.otp_code !== String(otp)) return res.status(400).json({ success: false, error: "Mã OTP không chính xác" });
+          if (new Date() > new Date(user.otp_expires_at)) return res.status(400).json({ success: false, error: "Mã OTP đã hết hạn. Vui lòng yêu cầu lại." });
+
+          const saltRounds = 10;
+          const new_password_hash = await bcrypt.hash(new_password, saltRounds);
+
+          const { error: updateError } = await supabase
+              .from('accounts').update({ password_hash: new_password_hash, otp_code: null, otp_expires_at: null }).eq('id', user.id);
+
+          if (updateError) throw updateError;
+          res.json({ success: true, message: "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay." });
+
+      } catch (err) { res.status(500).json({ success: false, error: "Lỗi máy chủ" }); }
+  });
   // ==========================================
   // WEBSOCKET SERVER
   // ==========================================
