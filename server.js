@@ -24,11 +24,19 @@ const TOPIC_FINGER_STATUS = "safe1/fingerstatus";
 const TOPIC_FACE_RESULT   = "safe1/faceresult"; 
 const WS_PORT             = process.env.PORT || 3000;
 
+// AI cloud 
+const response = await fetch("https://smart-safe.onrender.com/recognize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: base64ImageString })
+});
+const data = await response.json();
+
 // URL AI Model (Ngrok)
-const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
-const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
-const FACE_EXTRACT_URL    = FACE_SERVICE_URL.replace("/recognize", "/extract_vector"); 
-const RECOGNIZE_COOLDOWN  = 3000;
+// const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
+// const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
+// const FACE_EXTRACT_URL    = FACE_SERVICE_URL.replace("/recognize", "/extract_vector"); 
+// const RECOGNIZE_COOLDOWN  = 3000;
 
 // Supabase
 const { createClient } = require('@supabase/supabase-js');
