@@ -12,6 +12,7 @@ const fs         = require("fs");
 const multer     = require("multer");
 const cors       = require('cors');
 const bcrypt     = require('bcrypt');
+const fetch      = require('node-fetch');
 
 const MQTT_BROKER         = "mqtts://e539507d822e4b348dc6f0af2600bd01.s1.eu.hivemq.cloud:8883";
 const MQTT_USER           = "ketsat";
@@ -59,8 +60,8 @@ const upload = multer({
   }
 });
 
-  const bcrypt = require('bcrypt');
-  const fetch = require('node-fetch');
+(async () => {
+  const fetch = (await import("node-fetch")).default;
   console.log("[INIT] ✅ node-fetch đã sẵn sàng");
 
   const app    = express();
@@ -119,6 +120,7 @@ const upload = multer({
       } catch (err) {
           res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
       }
+  });
 
   app.post('/api/auth/login', async (req, res) => {
     try {
@@ -364,30 +366,22 @@ const upload = multer({
     }
   });
 
-  async function runRecognition(b64Image, timestamp) {
-    broadcast({ type: "recognizing", timestamp });
-    try {
-      const res = await fetch(FACE_SERVICE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: b64Image }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const result = await res.json();
-      broadcast({ type: "recognition_result", ...result, timestamp });
+  // Chỉ cần thêm dòng này ở đầu file, cùng chỗ với các biến require khác:
+const fetch = require('node-fetch');
 
-      if (result.recognized) {
-        publishUnlock(result.name);
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "ok", name: result.name, timestamp }), { qos: 1 });
-      } else if (result.detected) {
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "fail", name: "Unknown", timestamp }), { qos: 1 });
-      } else {
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "noface", timestamp }), { qos: 1 });
-      }
+// Và dùng hàm này để gọi sang Render (không dùng await import nữa):
+async function callAI(b64Image) {
+    try {
+        const response = await fetch('https://smart-safe.onrender.com/recognize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: b64Image })
+        });
+        return await response.json();
     } catch (err) {
-      broadcast({ type: "face_service_error", error: err.message, timestamp });
+        console.error("Lỗi gọi AI:", err);
     }
-  }
+}
 
   function publishUnlock(name) {
     const payload = JSON.stringify({ cmd: "UNLOCK", name, timestamp: new Date().toISOString() });
