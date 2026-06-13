@@ -15,7 +15,7 @@
     "express": "^4.22.1",
     "mqtt": "^5.3.4",
     "multer": "^2.1.1",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^8.0.5",
     "pg": "^8.20.0",
     "supabase": "^2.91.1",
