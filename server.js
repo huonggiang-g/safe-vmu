@@ -60,7 +60,8 @@ const upload = multer({
 });
 
 (async () => {
-  const fetch = (await import("node-fetch")).default;
+  // const fetch = (await import("node-fetch")).default;
+  const fetch = require('node-fetch');
   console.log("[INIT] ✅ node-fetch đã sẵn sàng");
 
   const app    = express();
