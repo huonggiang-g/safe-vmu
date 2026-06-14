@@ -226,7 +226,10 @@ const upload = multer({
           await transporter.sendMail(mailOptions);
           res.json({ success: true, message: "Mã OTP đã được gửi đến email của bạn!" });
 
-      } catch (err) { res.status(500).json({ success: false, error: "Lỗi hệ thống khi gửi email" }); }
+      } catch (err) { 
+        console.error("DEBUG LỖI GỬI MAIL:", err); // DÒNG NÀY RẤT QUAN TRỌNG
+        res.status(500).json({ success: false, error: err.message }); 
+    }
   });
 
   // ==========================================
