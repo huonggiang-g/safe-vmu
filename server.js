@@ -368,6 +368,11 @@ const upload = multer({
   });
 
   async function runRecognition(b64Image, timestamp) {
+          // Chỉ gửi nếu ảnh có độ dài hợp lý (ví dụ > 1000 bytes)
+    if (!b64Image || b64Image.length < 1000) {
+        console.log("Ảnh lỗi, bỏ qua không gửi sang AI");
+        return; 
+    }
     broadcast({ type: "recognizing", timestamp });
     try {
       const res = await fetch(FACE_SERVICE_URL, {
