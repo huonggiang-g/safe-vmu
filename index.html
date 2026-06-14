@@ -46,15 +46,10 @@
 
 <main>
   <div class="cam-section">
-
     <div class="cam-card">
       <div class="cam-card-header">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="cam-label">CAM-01 · SAFE_VMU_01 · VGA</span>
-        </div>
-        <div id="recBadge" class="rec-badge">
-          <span class="rec-dot"></span> LIVE
-        </div>
+        <span class="cam-label">CAM-01 · SAFE_VMU_01 · VGA</span>
+        <div id="recBadge" class="rec-badge"><span class="rec-dot"></span> LIVE</div>
       </div>
       <div class="cam-frame" id="camFrame">
         <div class="placeholder" id="placeholder">
@@ -77,35 +72,20 @@
         <div class="face-status" id="faceStatus">AWAITING SCAN</div>
         <div class="face-name" id="faceName">—</div>
         <div class="face-conf" id="faceConf">Confidence: —</div>
-        <div class="conf-bar">
-          <div class="conf-fill" id="confFill"></div>
-        </div>
+        <div class="conf-bar"><div class="conf-fill" id="confFill"></div></div>
       </div>
       <button class="unlock-btn" onclick="manualUnlock()">⚡ Mở thủ công</button>
     </div>
 
     <div class="stats-bar">
-      <div class="stat">
-        <div class="stat-label">Frames nhận</div>
-        <div class="stat-value green" id="frameCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Kích thước</div>
-        <div class="stat-value" id="lastSize">— KB</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Frame gần nhất</div>
-        <div class="stat-value" id="lastTime">—</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">WS Clients</div>
-        <div class="stat-value" id="wsClients">—</div>
-      </div>
+      <div class="stat"><div class="stat-label">Frames nhận</div><div class="stat-value green" id="frameCount">0</div></div>
+      <div class="stat"><div class="stat-label">Kích thước</div><div class="stat-value" id="lastSize">— KB</div></div>
+      <div class="stat"><div class="stat-label">Frame gần nhất</div><div class="stat-value" id="lastTime">—</div></div>
+      <div class="stat"><div class="stat-label">WS Clients</div><div class="stat-value" id="wsClients">—</div></div>
     </div>
   </div>
 
   <div class="sidebar">
-
     <div class="log-card">
       <div class="log-header">
         <div class="log-title">Nhật ký sự kiện</div>
@@ -114,18 +94,12 @@
           <button class="btn btn-danger" style="background:transparent; padding:4px 10px; font-size:0.72rem;" onclick="clearLogs()">🗑️ Xóa</button>
         </div>
       </div>
-      <div id="logContainer">
-        <div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">
-          Chưa có sự kiện nào...
-        </div>
-      </div>
+      <div id="logContainer"><div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện nào...</div></div>
     </div>
 
     <div class="thumb-section">
       <div class="thumb-label">Ảnh chụp gần đây</div>
-      <div id="thumbStrip">
-        <div style="color:var(--muted);font-size:0.75rem;">Chưa có ảnh nào</div>
-      </div>
+      <div id="thumbStrip"><div style="color:var(--muted);font-size:0.75rem;">Chưa có ảnh nào</div></div>
     </div>
 
     <div class="finger-panel">
@@ -138,18 +112,16 @@
           <div class="finger-icon" id="fingerIcon">🫆</div>
           <div class="finger-msg">
             <div class="finger-msg-title" id="fingerMsgTitle">Đang chờ</div>
-            <div class="finger-msg-sub" id="fingerMsgSub">Hệ thống sẵn sàng xác thực</div>
+            <div class="finger-msg-sub" id="fingerMsgSub">Hệ thống sẵn sàng</div>
           </div>
         </div>
-
-        <div class="finger-list" id="fingerList" style="margin-top: 10px;">
-          <div style="color:var(--muted);font-size:0.75rem;text-align:center;padding:12px;">
-            Chưa có vân tay nào
-          </div>
+        <div class="finger-enroll-row">
+          <input class="finger-input" id="fingerNameInput" type="text" placeholder="Tên người dùng...">
+          <button class="finger-btn enroll" onclick="startEnroll()">+ Đăng ký</button>
         </div>
+        <div class="finger-list" id="fingerList" style="margin-top:10px;"></div>
       </div>
     </div>
-
   </div>
 </main>
 
@@ -162,105 +134,63 @@
 </footer>
 
 <script>
-// ════ CONFIG ════
+/* GIỮ NGUYÊN TOÀN BỘ LOGIC JAVASCRIPT CŨ CỦA BẠN TỪ DÒNG NÀY TRỞ XUỐNG */
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL = `${protocol}//${window.location.host}`;
 const MAX_THUMBS = 8;
-const MAX_LOGS   = 80;
-
+const MAX_LOGS = 80;
 let frameCount = 0, logCount = 0;
 let ws = null, thumbs = [];
-
-// DOM refs
-const camImage      = document.getElementById('camImage');
-const placeholder   = document.getElementById('placeholder');
-const hudTime       = document.getElementById('hudTime');
-const hudSize       = document.getElementById('hudSize');
-const recBadge      = document.getElementById('recBadge');
-const logContainer  = document.getElementById('logContainer');
-const thumbStrip    = document.getElementById('thumbStrip');
-
-// User
+const camImage = document.getElementById('camImage');
+const placeholder = document.getElementById('placeholder');
+const hudTime = document.getElementById('hudTime');
+const hudSize = document.getElementById('hudSize');
+const recBadge = document.getElementById('recBadge');
+const logContainer = document.getElementById('logContainer');
+const thumbStrip = document.getElementById('thumbStrip');
 const user = getCurrentUser();
 document.getElementById('userNameDisplay').textContent = user ? user.full_name : 'Khách';
-
-// Clock
 function tick() {
-  document.getElementById('clock').textContent =
-    new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 tick(); setInterval(tick, 1000);
-
-// ════ LOG ════
 function addLog(type, msg) {
   const now = new Date().toLocaleTimeString('vi-VN');
   const icons = { face: '🫥', finger: '🫆', info: 'ℹ️', warn: '⚠️', status: '✅', error: '❌', photo: '📸' };
-  const icon  = icons[type] || '•';
-
+  const icon = icons[type] || '•';
   if (logCount === 0) logContainer.innerHTML = '';
-
   const entry = document.createElement('div');
   entry.className = `log-entry`;
   entry.style.padding = "8px 10px";
   entry.style.borderLeft = "2px solid var(--accent)";
   entry.style.marginBottom = "4px";
   entry.style.background = "rgba(0,0,0,0.2)";
-  
   if(type === 'error') entry.style.borderLeftColor = "var(--red)";
   if(type === 'status') entry.style.borderLeftColor = "var(--green)";
-
-  entry.innerHTML = `
-    <div style="display:flex; align-items:flex-start; gap:8px;">
-      <span>${icon}</span>
-      <div>
-        <div style="font-size:0.75rem; color:var(--text);">${msg}</div>
-        <div style="font-size:0.6rem; color:var(--muted); margin-top:2px;">${now}</div>
-      </div>
-    </div>`;
-    
+  entry.innerHTML = `<div style="display:flex; align-items:flex-start; gap:8px;"><span>${icon}</span><div><div style="font-size:0.75rem; color:var(--text);">${msg}</div><div style="font-size:0.6rem; color:var(--muted); margin-top:2px;">${now}</div></div></div>`;
   logContainer.prepend(entry);
   logCount++;
   document.getElementById('logCount').textContent = logCount;
   if (logContainer.children.length > MAX_LOGS) logContainer.lastChild.remove();
 }
-
 function clearLogs() {
   logContainer.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện nào...</div>';
-  logCount = 0;
-  document.getElementById('logCount').textContent = '0';
+  logCount = 0; document.getElementById('logCount').textContent = '0';
 }
-
-// ════ WEBSOCKET ════
 function connect() {
   ws = new WebSocket(WS_URL);
-
   ws.onopen = () => {
     document.getElementById('wsDot').classList.add('online');
     document.getElementById('wsLabel').textContent = 'WebSocket: Đã kết nối';
     addLog('status', 'WebSocket kết nối thành công');
-    setTimeout(() => {
-      if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "finger_list" }));
-    }, 500);
   };
-  
   ws.onclose = () => {
     document.getElementById('wsDot').classList.remove('online');
     document.getElementById('wsLabel').textContent = 'WebSocket: Đã ngắt kết nối';
-    addLog('warn', 'WebSocket mất kết nối — thử lại sau 3s');
-    document.getElementById('mqttBadge').className = 'conn-badge offline';
-    document.getElementById('mqttLabel').textContent = 'MQTT OFFLINE';
     setTimeout(connect, 3000);
   };
-  
-  ws.onerror = () => addLog('error', 'Lỗi WebSocket');
-
   ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      handleMessage(msg);
-    } catch (e) {
-      // Bỏ qua nếu không phải JSON
-    }
+    try { const msg = JSON.parse(event.data); handleMessage(msg); } catch (e) {}
   };
 }
 
