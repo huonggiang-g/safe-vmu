@@ -368,34 +368,56 @@ const upload = multer({
   });
 
   async function runRecognition(b64Image, timestamp) {
-          // Chỉ gửi nếu ảnh có độ dài hợp lý (ví dụ > 1000 bytes)
-    if (!b64Image || b64Image.length < 1000) {
-        console.log("Ảnh lỗi, bỏ qua không gửi sang AI");
-        return; 
-    }
-    broadcast({ type: "recognizing", timestamp });
-    try {
-      const res = await fetch(FACE_SERVICE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-        body: JSON.stringify({ image: b64Image }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const result = await res.json();
-      broadcast({ type: "recognition_result", ...result, timestamp });
-
-      if (result.recognized) {
-        publishUnlock(result.name);
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "ok", name: result.name, confidence: parseFloat((result.confidence * 100).toFixed(1)), timestamp }), { qos: 1 });
-      } else if (result.detected) {
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "fail", name: "Unknown", timestamp }), { qos: 1 });
-      } else {
-        mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "noface", timestamp }), { qos: 1 });
-      }
-    } catch (err) {
-      broadcast({ type: "face_service_error", error: err.message, timestamp });
-    }
+  // 1. Kiểm tra dữ liệu ảnh đầu vào
+  if (!b64Image || b64Image.length < 1000) {
+    console.warn("Ảnh quá nhỏ hoặc bị lỗi, bỏ qua không gửi sang AI.");
+    return;
   }
+
+  // 2. Làm sạch Base64 (phòng trường hợp dính header data:image/jpeg;...)
+  const cleanBase64 = b64Image.includes(',') ? b64Image.split(',')[1] : b64Image;
+
+  broadcast({ type: "recognizing", timestamp });
+
+  try {
+    console.log(`Đang gửi ảnh sang AI... (Độ dài: ${cleanBase64.length})`);
+    
+    const res = await fetch(FACE_SERVICE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }, // Xóa bỏ ngrok-skip header
+      body: JSON.stringify({ image: cleanBase64 }),
+    });
+
+    // 3. Xử lý lỗi HTTP chi tiết
+    if (!res.ok) {
+      const errorText = await res.text(); // Đọc nội dung lỗi từ AI trả về
+      throw new Error(`AI Service phản hồi lỗi ${res.status}: ${errorText}`);
+    }
+
+    const result = await res.json();
+    console.log("Kết quả nhận diện từ AI:", result);
+    broadcast({ type: "recognition_result", ...result, timestamp });
+
+    // 4. Logic xử lý kết quả
+    if (result.recognized) {
+      publishUnlock(result.name);
+      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ 
+        result: "ok", 
+        name: result.name, 
+        confidence: parseFloat((result.confidence * 100).toFixed(1)), 
+        timestamp 
+      }), { qos: 1 });
+    } else if (result.detected) {
+      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "fail", name: "Unknown", timestamp }), { qos: 1 });
+    } else {
+      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "noface", timestamp }), { qos: 1 });
+    }
+
+  } catch (err) {
+    console.error("LỖI GỌI AI:", err.message);
+    broadcast({ type: "face_service_error", error: err.message, timestamp });
+  }
+}
 
   function publishUnlock(name) {
     const payload = JSON.stringify({ cmd: "UNLOCK", name, timestamp: new Date().toISOString() });
