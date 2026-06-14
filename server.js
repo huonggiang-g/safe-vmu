@@ -291,7 +291,7 @@ const upload = multer({
         }
       } catch (err) { console.error("Lỗi xử lý WS:", err); }
     });
-  
+  });
 
   function broadcast(data) {
     const str = typeof data === "string" ? data : JSON.stringify(data);
@@ -410,4 +410,4 @@ const upload = multer({
     console.log(`📡 WebSocket: ws://localhost:${WS_PORT}`);
     console.log(`──────────────────────────────────────────────────\n`);
   });
-})();
+
