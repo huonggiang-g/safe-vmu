@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAFE VMU — Camera Monitor</title>
+  <title>SAFE VMU — Hệ thống quản lý</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="client_auth.js"></script>
+  <style>
+    /* Bổ sung CSS trực tiếp để đảm bảo layout khớp với yêu cầu */
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 20px; max-width: 1200px; margin: auto; }
+    .top-controls { grid-column: 1 / -1; background: white; padding: 15px; border-radius: 12px; border: 1px solid #eef0f2; display: flex; align-items: center; gap: 15px; }
+    .main-content { display: flex; flex-direction: column; gap: 20px; }
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
 
@@ -19,15 +27,9 @@
       <div class="logo-sub">SURVEILLANCE SYSTEM</div>
     </div>
   </div>
-  <div class="header-center">
-    CAM MONITOR · SAFE_VMU_01<br>
-    <span>■ ■ ■</span>
-  </div>
+  <div class="header-center">CAM MONITOR · SAFE_VMU_01<br><span>■ ■ ■</span></div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <div id="mqttBadge" class="conn-badge offline">
-      <span class="dot"></span>
-      <span id="mqttLabel">MQTT OFFLINE</span>
-    </div>
+    <div id="mqttBadge" class="conn-badge offline"><span class="dot"></span><span id="mqttLabel">MQTT OFFLINE</span></div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
@@ -38,99 +40,63 @@
     <a href="history.html">📋 Lịch sử</a>
     <a href="profile.html">👤 Tài khoản</a>
   </div>
-  <div class="nav-user">
-    <span id="userNameDisplay" style="font-weight:600;">User</span>
-    <button class="btn btn-danger" style="padding:6px 14px;font-size:0.78rem;" onclick="doLogout()">Đăng xuất</button>
-  </div>
+  <div class="nav-user"><span id="userNameDisplay" style="font-weight:600;">User</span><button class="btn btn-danger" style="padding:6px 14px;font-size:0.78rem;" onclick="doLogout()">Đăng xuất</button></div>
 </nav>
 
-<main>
+<main class="dashboard-grid">
   <div class="top-controls">
-    <label>🏢 Vị trí:</label>
-    <select id="safeSelect" style="padding:8px; border-radius:6px;">
+    <label style="font-weight:600;">🏢 Vị trí:</label>
+    <select id="safeSelect" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
         <option>Két sắt chính (Phòng làm việc)</option>
         <option>Két sắt phụ (Phòng ngủ)</option>
     </select>
   </div>
 
-  <div class="cam-section">
-    <div class="cam-card">
-        </div>
-    
-    <div class="face-panel" style="width: 100%;">
-        </div>
-  </div>
-
-  <div class="sidebar">
-    <div class="log-card">
-        </div>
-
-    <div class="finger-panel">
-        </div>
-  </div>
-  
-  <div class="cam-section">
+  <div class="main-content">
     <div class="cam-card">
       <div class="cam-card-header">
-        <span class="cam-label">CAM-01 · SAFE_VMU_01 · VGA</span>
+        <span class="cam-label">CAM-01 · LIVE</span>
         <div id="recBadge" class="rec-badge"><span class="rec-dot"></span> LIVE</div>
       </div>
       <div class="cam-frame" id="camFrame">
         <div class="placeholder" id="placeholder">
           <div class="ph-icon">📷</div>
           <p>AWAITING SIGNAL</p>
-          <p style="margin-top:4px;font-size:0.6rem;">Chờ ảnh từ ESP32-S3...</p>
         </div>
-        <img id="camImage" alt="Camera Feed">
+        <img id="camImage" alt="Camera Feed" style="display:none; width:100%;">
         <div class="hud-overlay" id="hudOverlay">
           <div class="hud-row" id="hudTime">--:--:--</div>
-          <div class="hud-row" id="hudSize">-- KB</div>
-          <div class="hud-row">CAM-01 · VGA</div>
         </div>
       </div>
     </div>
 
-    <div class="face-panel">
+    <div class="face-panel" style="width: 100%;">
       <div class="face-avatar" id="faceAvatar">👤</div>
       <div class="face-info">
         <div class="face-status" id="faceStatus">AWAITING SCAN</div>
         <div class="face-name" id="faceName">—</div>
-        <div class="face-conf" id="faceConf">Confidence: —</div>
         <div class="conf-bar"><div class="conf-fill" id="confFill"></div></div>
       </div>
       <button class="unlock-btn" onclick="manualUnlock()">⚡ Mở thủ công</button>
-    </div>
-
-    <div class="stats-bar">
-      <div class="stat"><div class="stat-label">Frames nhận</div><div class="stat-value green" id="frameCount">0</div></div>
-      <div class="stat"><div class="stat-label">Kích thước</div><div class="stat-value" id="lastSize">— KB</div></div>
-      <div class="stat"><div class="stat-label">Frame gần nhất</div><div class="stat-value" id="lastTime">—</div></div>
-      <div class="stat"><div class="stat-label">WS Clients</div><div class="stat-value" id="wsClients">—</div></div>
     </div>
   </div>
 
   <div class="sidebar">
     <div class="log-card">
       <div class="log-header">
-        <div class="log-title">Nhật ký sự kiện</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="log-count" id="logCount">0</span>
-          <button class="btn btn-danger" style="background:transparent; padding:4px 10px; font-size:0.72rem;" onclick="clearLogs()">🗑️ Xóa</button>
-        </div>
+        <div class="log-title">📋 Nhật ký sự kiện</div>
+        <button class="btn btn-danger" style="background:transparent; padding:4px 10px; font-size:0.72rem;" onclick="clearLogs()">🗑️ Xóa</button>
       </div>
-      <div id="logContainer"><div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện nào...</div></div>
+      <div id="logContainer"><div style="text-align:center;color:var(--muted);font-size:0.78rem;padding:20px;">Chưa có sự kiện...</div></div>
     </div>
 
     <div class="thumb-section">
-      <div class="thumb-label">Ảnh chụp gần đây</div>
-      <div id="thumbStrip"><div style="color:var(--muted);font-size:0.75rem;">Chưa có ảnh nào</div></div>
+      <div class="thumb-label">📸 Ảnh chụp gần đây</div>
+      <div id="thumbStrip"></div>
     </div>
 
     <div class="finger-panel">
-      <div class="finger-panel-header">
-        <div class="finger-panel-title">🫆 Trạng thái vân tay</div>
-        <span class="log-count" id="fingerCount">0</span>
-      </div>
+      <div class="finger-panel-header"><div class="finger-panel-title">🫆 Trạng thái vân tay</div></div>
       <div class="finger-body">
         <div class="finger-status-box" id="fingerStatusBox">
           <div class="finger-icon" id="fingerIcon">🫆</div>
@@ -143,18 +109,14 @@
           <input class="finger-input" id="fingerNameInput" type="text" placeholder="Tên người dùng...">
           <button class="finger-btn enroll" onclick="startEnroll()">+ Đăng ký</button>
         </div>
-        <div class="finger-list" id="fingerList" style="margin-top:10px;"></div>
+        <div id="fingerList" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
 </main>
 
 <footer>
-  <div>SAFE SURVEILLANCE SYSTEM v1.0 · ESP32-S3 → HiveMQ → Node.js → WebSocket</div>
-  <div class="ws-status">
-    <div class="ws-dot" id="wsDot"></div>
-    <span id="wsLabel">WebSocket: Đang kết nối...</span>
-  </div>
+  <div>SAFE SURVEILLANCE SYSTEM v1.0</div>
 </footer>
 
 <script>
