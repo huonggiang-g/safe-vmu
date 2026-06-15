@@ -1201,3 +1201,27 @@ footer {
 .text-red    { color: var(--red); }
 .text-muted  { color: var(--muted); }
 .mono        { font-family: var(--font-mono); }
+
+/* Thêm vào file style.css của bạn */
+main {
+    display: grid;
+    grid-template-columns: 1fr 350px; /* Cột trái cho Cam, cột phải cho Logs/Finger */
+    gap: 20px;
+    padding: 20px;
+}
+
+.cam-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.top-controls {
+    grid-column: 1 / -1; /* Thanh chọn két sắt nằm full chiều rộng ở trên cùng */
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
