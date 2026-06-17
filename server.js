@@ -86,7 +86,8 @@ const upload = multer({
           if (req.file) {
               const b64Image = req.file.buffer.toString("base64");
               const extractRes = await fetch(FACE_EXTRACT_URL, {
-                  method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  //method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                   body: JSON.stringify({ image: b64Image }),
               });
               const extractData = await extractRes.json();
