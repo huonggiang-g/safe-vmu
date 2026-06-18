@@ -29,7 +29,7 @@ const WS_PORT             = process.env.PORT || 3000;
 const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
 const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
 const FACE_EXTRACT_URL    = FACE_SERVICE_URL.replace("/recognize", "/extract_vector"); 
-const RECOGNIZE_COOLDOWN  = 3000;
+const RECOGNIZE_COOLDOWN  = 5000;
 
 // Supabase
 const { createClient } = require('@supabase/supabase-js');
