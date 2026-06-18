@@ -382,7 +382,7 @@ const upload = multer({
 
   try {
     console.log(`Đang gửi ảnh sang AI... (Độ dài: ${cleanBase64.length})`);
-    
+    console.log("DEBUG: Đang gửi tới URL:", FACE_SERVICE_URL);
     const res = await fetch(FACE_SERVICE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" }, // Xóa bỏ ngrok-skip header
