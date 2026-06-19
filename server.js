@@ -283,24 +283,37 @@ app.post('/api/history/view', async (req, res) => {
 
 app.get('/api/safe/my-role', async (req, res) => {
     try {
-        const { safe_id } = req.query; // Nhận từ query string
-        console.log("DEBUG: Nhận request my-role với safe_id:", safe_id);
-        const user_id = req.user.id;   // Lấy từ session/auth hiện tại
+        const { safe_id } = req.query;
+        // Lấy user_id từ request header (hoặc session của bạn)
+        const user_id = req.headers['user-id']; 
 
-        // Dịch serial sang UUID trước (như chúng ta đã làm với API history)
-        const { data: safeData } = await supabase.from('safes').select('id').eq('serial_number', safe_id).single();
-        if (!safeData) return res.status(404).json({ error: "Không tìm thấy két" });
+        if (!safe_id || !user_id) {
+            return res.status(400).json({ error: "Thiếu safe_id hoặc user_id" });
+        }
 
-        const { data: member } = await supabase
+        // 1. Tìm UUID từ Serial
+        const { data: safeData, error: safeError } = await supabase
+            .from('safes')
+            .select('id')
+            .eq('serial_number', safe_id)
+            .single();
+
+        if (safeError || !safeData) {
+            return res.status(404).json({ error: "Không tìm thấy két" });
+        }
+
+        // 2. Tìm quyền
+        const { data: member, error: memberError } = await supabase
             .from('safe_members')
             .select('role')
             .eq('safe_id', safeData.id)
             .eq('user_id', user_id)
-            .single();
+            .maybeSingle(); // Dùng maybeSingle để không bị lỗi nếu không tìm thấy
 
         res.json({ role: member ? member.role : null });
+
     } catch (err) {
-        console.error("DEBUG: Lỗi tại API my-role:", err);
+        console.error("LỖI CHI TIẾT:", err); // Dòng này sẽ in lỗi thực sự vào Terminal của Render
         res.status(500).json({ error: err.message });
     }
 });
