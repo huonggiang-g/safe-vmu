@@ -27,7 +27,6 @@ const WS_PORT              = process.env.PORT || 3000;
 
 // --- URL AI Services ---
 const SMART_SAFE_URL = "https://smart-safe.onrender.com/recognize";
-const AI_LIGHT_URL   = "https://ai-light.onrender.com/embed";
 const RECOGNIZE_COOLDOWN = 5000;
 
 const { createClient } = require('@supabase/supabase-js');
@@ -237,38 +236,54 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // --- LOGIC AI ĐIỀU PHỐI (RUN RECOGNITION) ---
 async function runRecognition(b64Image, timestamp) {
-  if (!b64Image || b64Image.length < 1000) return;
-  const cleanBase64 = b64Image.includes(',') ? b64Image.split(',')[1] : b64Image;
+    if (!b64Image || b64Image.length < 1000) return;
+    const cleanBase64 = b64Image.includes(',') ? b64Image.split(',')[1] : b64Image;
 
-  broadcast({ type: "recognizing", timestamp });
+    broadcast({ type: "recognizing", timestamp });
 
-  try {
-    // 1. Gọi smart-safe để lấy ảnh khuôn mặt
-    const resSmart = await fetch(SMART_SAFE_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: cleanBase64 }),
-    });
-    const dataSmart = await resSmart.json();
-    if (dataSmart.status !== "ok") return;
+    try {
+        // 1. Gọi smart-safe để cắt mặt (vẫn giữ bước này để lấy ảnh mặt sạch)
+        const resSmart = await fetch(SMART_SAFE_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: cleanBase64 }),
+        });
+        const dataSmart = await resSmart.json();
+        if (dataSmart.status !== "ok") return;
 
-    // 2. Gọi ai_light để lấy Vector
-    const resAi = await fetch(AI_LIGHT_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: dataSmart.face }),
-    });
-    const dataAi = await resAi.json();
-    
-    // 3. So sánh tại server
-    const bestMatch = await compareWithDatabase(dataAi.embedding);
+        // 2. GỌI HUGGING FACE THAY VÌ GỌI AI_LIGHT
+        const inputVector = await getVectorFromHuggingFace(dataSmart.face);
+        
+        // 3. So sánh tại server
+        const bestMatch = await compareWithDatabase(inputVector);
 
-    // 4. Xử lý kết quả
-    if (bestMatch.recognized) {
-      publishUnlock(bestMatch.name);
-      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "ok", name: bestMatch.name, timestamp }), { qos: 1 });
+        // 4. Xử lý kết quả
+        if (bestMatch.recognized) {
+            publishUnlock(bestMatch.name);
+            mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ 
+                result: "ok", name: bestMatch.name, timestamp 
+            }), { qos: 1 });
+        }
+    } catch (err) { 
+        console.error("LỖI ĐIỀU PHỐI (HuggingFace):", err.message); 
     }
-  } catch (err) { console.error("LỖI ĐIỀU PHỐI:", err.message); }
 }
 
+// Hàm bổ trợ gọi Hugging Face
+async function getVectorFromHuggingFace(b64FaceImage) {
+    const HUGGING_FACE_TOKEN = process.env.HUGGING_FACE_TOKEN;
+    const response = await fetch("https://api-inference.huggingface.co/models/michaelfeil/bbr-face-embedding", {
+        method: "POST",
+        headers: { 
+            "Authorization": `Bearer ${HUGGING_FACE_TOKEN}`,
+            "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ inputs: b64FaceImage }),
+    });
+    
+    if (!response.ok) throw new Error("Lỗi API HuggingFace");
+    const data = await response.json();
+    return data[0]; // Trả về mảng vector
+}
 async function compareWithDatabase(inputVector) {
     const { data: users } = await supabase.from('accounts').select('full_name, face_vector');
     let bestName = "Unknown";
