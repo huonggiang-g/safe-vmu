@@ -478,7 +478,7 @@ async function checkRole() {
     if (!user) return;
 
     try {
-        const res = await fetch(`${API_BASE}/api/safe/my-role?safe_id=${targetSafeId}`, { 
+        const res = await fetch(`${API_BASE}/safe/my-role?safe_id=${targetSafeId}`, { 
             headers: {
                 ...getAuthHeaders(), // Giữ header cũ của bạn (vd: Authorization token)
                 'x-user-id': user.id  // Gửi thêm user.id qua header này
