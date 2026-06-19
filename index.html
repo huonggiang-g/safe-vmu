@@ -178,16 +178,30 @@ function clearLogs() {
 }
 function connect() {
   ws = new WebSocket(WS_URL);
+  
   ws.onopen = () => {
-    document.getElementById('wsDot').classList.add('online');
-    document.getElementById('wsLabel').textContent = 'WebSocket: Đã kết nối';
+    // Sửa 'wsDot' thành 'mqttBadge' (vì trong HTML bạn dùng id="mqttBadge")
+    const badge = document.getElementById('mqttBadge');
+    if (badge) badge.classList.add('online');
+    
+    // Sửa 'wsLabel' thành 'mqttLabel'
+    const label = document.getElementById('mqttLabel');
+    if (label) label.textContent = 'MQTT ONLINE';
+    
     addLog('status', 'WebSocket kết nối thành công');
   };
+
   ws.onclose = () => {
-    document.getElementById('wsDot').classList.remove('online');
-    document.getElementById('wsLabel').textContent = 'WebSocket: Đã ngắt kết nối';
+    // Sửa tương tự ở đây
+    const badge = document.getElementById('mqttBadge');
+    if (badge) badge.classList.remove('online');
+    
+    const label = document.getElementById('mqttLabel');
+    if (label) label.textContent = 'MQTT OFFLINE';
+    
     setTimeout(connect, 3000);
   };
+
   ws.onmessage = (event) => {
     try { const msg = JSON.parse(event.data); handleMessage(msg); } catch (e) {}
   };
@@ -428,7 +442,7 @@ function renderFingerList(db) {
 const targetSafeId = 'SN-2026-00001'; // Đảm bảo trùng với serial trong DB
 
 async function loadMemberList() {
-    const res = await fetch(`${API_BASE}/api/safe/members?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE}/safe/members?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
     const data = await res.json();
     const listDiv = document.getElementById('memberList');
     listDiv.innerHTML = data.members.map(m => `
@@ -441,7 +455,7 @@ async function loadMemberList() {
 
 async function addMember() {
     const email = document.getElementById('newMemberEmail').value;
-    const res = await fetch(`${API_BASE}/api/safe/create-invite`, {
+    const res = await fetch(`${API_BASE}/safe/create-invite`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ safe_id: targetSafeId, email: email })
@@ -451,7 +465,7 @@ async function addMember() {
 
 async function transferOwner(newOwnerId) {
     if(!confirm("Chắc chắn nhượng quyền?")) return;
-    const res = await fetch(`${API_BASE}/api/safe/transfer-owner`, {
+    const res = await fetch(`${API_BASE}/safe/transfer-owner`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ safe_id: targetSafeId, new_owner_id: newOwnerId, current_owner_id: user.id })
@@ -460,7 +474,7 @@ async function transferOwner(newOwnerId) {
 }
 
 async function checkRole() {
-    const res = await fetch(`${API_BASE}/api/safe/my-role?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
+    const res = await fetch(`${API_BASE}/safe/my-role?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.role === 'owner') {
         document.getElementById('adminSection').style.display = 'block';
