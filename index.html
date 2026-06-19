@@ -89,10 +89,9 @@
       <div style="padding: 15px;">
         <div style="margin-bottom: 15px; display:flex; gap:5px;">
           <input type="email" id="newMemberEmail" placeholder="Email người dùng..." class="input-field" style="flex:1; padding:8px;">
-          <button class="btn btn-secondary" onclick="addMember()">Thêm</button>
+          <button class="btn btn-secondary" onclick="addMember()">Mời</button>
         </div>
-        <div id="memberList" style="font-size: 0.75rem;">
-          </div>
+        <div id="memberList" style="font-size: 0.75rem;"></div>
       </div>
     </div>
     
@@ -345,7 +344,28 @@ function manualUnlock() {
     addLog("error", "Lỗi: WebSocket chưa kết nối");
   }
 }
+// Hàm bắt đầu đăng ký vân tay
+function startEnroll() {
+  const nameInput = document.getElementById("fingerNameInput");
+  const name = nameInput.value.trim();
+  
+  if (!name) {
+    alert("Vui lòng nhập tên người dùng trước khi đăng ký!");
+    return;
+  }
 
+  if (ws?.readyState === WebSocket.OPEN) {
+    // Gửi lệnh sang ESP32 qua WebSocket
+    ws.send(JSON.stringify({ 
+      type: "enroll_start", 
+      name: name 
+    }));
+    addLog("info", `🫆 Đang gửi lệnh đăng ký vân tay cho: ${name}`);
+    nameInput.value = ""; // Xóa nội dung input sau khi gửi
+  } else {
+    addLog("error", "Lỗi: Không thể kết nối với hệ thống vân tay (WebSocket offline)");
+  }
+}
 // ════ FINGERPRINT ════
 function handleFingerStatus(msg) {
   const ev = msg.event;
@@ -403,24 +423,42 @@ function renderFingerList(db) {
     </div>
   `).join("");
 }
-// --- LOGIC QUẢN TRỊ ---
+
+// --- CÁC HÀM QUẢN TRỊ ---
+const targetSafeId = 'SN-2026-00001'; // Đảm bảo trùng với serial trong DB
+
 async function loadMemberList() {
-    try {
-        const res = await fetch(`${API_BASE}/api/safe/members?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        
-        // Hiển thị danh sách thành viên
-        const listDiv = document.getElementById('memberList');
-        listDiv.innerHTML = data.members.map(m => `
-            <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #eee;">
-                <span>${m.accounts.full_name} (${m.role})</span>
-                ${m.role !== 'owner' ? `<button onclick="transferOwner('${m.user_id}')" style="color:var(--accent); border:none; background:none; cursor:pointer;">Nhượng quyền</button>` : '<span>👑</span>'}
-            </div>
-        `).join('');
-    } catch (e) { console.error(e); }
+    const res = await fetch(`${API_BASE}/api/safe/members?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
+    const data = await res.json();
+    const listDiv = document.getElementById('memberList');
+    listDiv.innerHTML = data.members.map(m => `
+        <div style="display:flex; justify-content:space-between; padding:5px 0;">
+            <span>${m.accounts.full_name} (${m.role})</span>
+            ${m.role !== 'owner' ? `<button onclick="transferOwner('${m.user_id}')" style="color:var(--accent); border:none; background:none; cursor:pointer;">Nhượng quyền</button>` : '<span>👑</span>'}
+        </div>
+    `).join('');
 }
 
-// Kiểm tra quyền và ẩn/hiện Admin Section
+async function addMember() {
+    const email = document.getElementById('newMemberEmail').value;
+    const res = await fetch(`${API_BASE}/api/safe/create-invite`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ safe_id: targetSafeId, email: email })
+    });
+    if ((await res.json()).success) alert("Đã gửi lời mời qua email!");
+}
+
+async function transferOwner(newOwnerId) {
+    if(!confirm("Chắc chắn nhượng quyền?")) return;
+    const res = await fetch(`${API_BASE}/api/safe/transfer-owner`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ safe_id: targetSafeId, new_owner_id: newOwnerId, current_owner_id: user.id })
+    });
+    if ((await res.json()).success) location.reload();
+}
+
 async function checkRole() {
     const res = await fetch(`${API_BASE}/api/safe/my-role?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
     const data = await res.json();
@@ -429,11 +467,11 @@ async function checkRole() {
         loadMemberList();
     }
 }
-
 // Gọi checkRole khi trang tải xong
-document.addEventListener('DOMContentLoaded', checkRole);
-// Bắt đầu kết nối tự động
-connect();
+document.addEventListener('DOMContentLoaded', () => {
+    checkRole();
+    connect();
+});
 </script>
 </body>
 </html>
