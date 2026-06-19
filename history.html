@@ -85,7 +85,7 @@
             <tr>
               <th>Thời gian</th>
               <th>Người mở</th>
-              <th>Két sắt</th>
+              <th>Két sắt (Serial)</th>
               <th>Trạng thái</th>
               <th style="text-align:right;">Hành động</th>
             </tr>
@@ -126,14 +126,12 @@
     function applyFilter() {
       const status = document.getElementById('filterStatus').value;
       const dateSelected = document.getElementById('filterDate').value;
-      
       const filtered = allLogs.filter(l => {
         const logDate = new Date(l.attempted_at).toISOString().split('T')[0];
         const matchStatus = !status || (status === 'success' ? (l.result === 'success') : (l.result !== 'success'));
         const matchDate = !dateSelected || logDate === dateSelected;
         return matchStatus && matchDate;
       });
-      
       updateStats(filtered);
       renderTable(filtered);
     }
@@ -157,7 +155,7 @@
         <tr>
           <td class="mono">${new Date(log.attempted_at).toLocaleString('vi-VN')}</td>
           <td style="font-weight:500;">${log.accounts ? log.accounts.full_name : 'Unknown'}</td>
-          <td class="mono">${log.safe_id}</td>
+          <td class="mono">${log.safes ? log.safes.serial_number : 'N/A'}</td>
           <td>${log.result === 'success' ? '<span class="badge badge-green">Thành công</span>' : '<span class="badge badge-red">Thất bại</span>'}</td>
           <td style="text-align:right;"><button class="btn btn-danger" onclick="deleteLog(${log.id})">🗑 Xóa</button></td>
         </tr>
@@ -165,7 +163,6 @@
     }
 
     function deleteLog(id) { if(confirm('Xóa bản ghi này?')) alert('Đã xóa log ' + id); }
-
     loadHistory();
   </script>
 </body>
