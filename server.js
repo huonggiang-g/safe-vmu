@@ -236,36 +236,33 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/history/view', async (req, res) => {
     try {
-        const { safe_id } = req.body; // Đây là giá trị serial_number bạn gửi từ frontend
-        
-        // 1. Tìm UUID của két sắt trong bảng 'safes' dựa trên 'serial_number'
-        // Thay 'safes' bằng tên bảng chứa serial_number của bạn
-        const { data: safeData, error: safeError } = await supabase
-            .from('safes') 
+        const { safe_id } = req.body;
+
+        // 1. Tìm UUID của két sắt trước (như cũ)
+        const { data: safeData } = await supabase
+            .from('safes')
             .select('id')
-            .eq('serial_number', safe_id) // Tìm dựa trên serial_number
+            .eq('serial_number', safe_id)
             .single();
 
-        if (safeError || !safeData) {
-            throw new Error("Không tìm thấy két sắt với serial number này");
-        }
+        if (!safeData) throw new Error("Không tìm thấy két sắt");
 
-        // 2. Dùng UUID tìm được (safeData.id) để truy vấn bảng log
-        const { data: logs, error: logError } = await supabase
-            .from('unlock_logs') 
-            .select('*')
-            .eq('safe_id', safeData.id) // Truy vấn bằng UUID chuẩn
+        // 2. Truy vấn log KÈM VỚI TÊN người dùng từ bảng accounts
+        // Chúng ta lấy tất cả từ unlock_logs và chỉ lấy full_name từ accounts
+        const { data: logs, error } = await supabase
+            .from('unlock_logs')
+            .select('*, accounts(full_name)') 
+            .eq('safe_id', safeData.id)
             .order('attempted_at', { ascending: false });
 
-        if (logError) throw logError;
+        if (error) throw error;
         
         res.json({ success: true, logs: logs });
     } catch (err) {
-        console.error("Lỗi API history:", err);
+        console.error("Lỗi:", err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
-
 // --- LOGIC AI ĐIỀU PHỐI (RUN RECOGNITION) ---
 async function runRecognition(b64Image, timestamp) {
     if (!b64Image || b64Image.length < 1000) return;
