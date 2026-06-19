@@ -237,9 +237,10 @@ app.post('/api/auth/reset-password', async (req, res) => {
 app.post('/api/history/view', async (req, res) => {
     try {
         const { safe_id } = req.body;
-        // Lấy dữ liệu từ bảng unlock_history
+        
+        // Đã sửa 'unlock_history' thành 'unlock_logs' theo gợi ý của Supabase
         const { data: logs, error } = await supabase
-            .from('unlock_history')
+            .from('unlock_logs') 
             .select('*')
             .eq('safe_id', safe_id || "SAFE_VMU_01")
             .order('timestamp', { ascending: false });
