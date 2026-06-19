@@ -238,14 +238,16 @@ app.post('/api/history/view', async (req, res) => {
     try {
         const { safe_id } = req.body;
         
-        // Đã sửa 'unlock_history' thành 'unlock_logs' theo gợi ý của Supabase
+        // Truy vấn với tên bảng và tên cột chính xác
         const { data: logs, error } = await supabase
             .from('unlock_logs') 
             .select('*')
             .eq('safe_id', safe_id || "SAFE_VMU_01")
-            .order('timestamp', { ascending: false });
+            .order('attempted_at', { ascending: false }); // Sửa 'timestamp' thành 'attempted_at'
 
         if (error) throw error;
+        
+        // Trả về dữ liệu
         res.json({ success: true, logs: logs });
     } catch (err) {
         console.error("Lỗi API history:", err);
