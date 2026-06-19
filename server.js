@@ -1,5 +1,5 @@
 /**
- * server.js — MQTT → WebSocket Bridge + Face Recognition + Fingerprint + DB
+ * server.js — MQTT → WebSocket Bridge + Distributed AI System
  */
 require("dotenv").config();
 const nodemailer = require('nodemailer');
@@ -14,33 +14,24 @@ const cors       = require('cors');
 const bcrypt     = require('bcrypt');
 const fetch      = require('node-fetch');
 
-const MQTT_BROKER         = "mqtts://e539507d822e4b348dc6f0af2600bd01.s1.eu.hivemq.cloud:8883";
-const MQTT_USER           = "ketsat";
-const MQTT_PASS           = "Ket123456";
-const TOPIC_PHOTO         = "safe1/cam";
-const TOPIC_LOGS          = "safe1/log";
-const TOPIC_CMD           = "safe1/cmd";
-const TOPIC_FINGER_CMD    = "safe1/fingercmd";
-const TOPIC_FINGER_STATUS = "safe1/fingerstatus";
-const TOPIC_FACE_RESULT   = "safe1/faceresult"; 
-const WS_PORT             = process.env.PORT || 3000;
+const MQTT_BROKER          = "mqtts://e539507d822e4b348dc6f0af2600bd01.s1.eu.hivemq.cloud:8883";
+const MQTT_USER            = "ketsat";
+const MQTT_PASS            = "Ket123456";
+const TOPIC_PHOTO          = "safe1/cam";
+const TOPIC_LOGS           = "safe1/log";
+const TOPIC_CMD            = "safe1/cmd";
+const TOPIC_FINGER_CMD     = "safe1/fingercmd";
+const TOPIC_FINGER_STATUS  = "safe1/fingerstatus";
+const TOPIC_FACE_RESULT    = "safe1/faceresult"; 
+const WS_PORT              = process.env.PORT || 3000;
 
-// URL AI Model (Ngrok)
-const FACE_SERVICE_URL    = process.env.FACE_SERVICE_URL || "http://localhost:5001/recognize";
-const FACE_RELOAD_URL     = process.env.FACE_RELOAD_URL || "http://localhost:5001/reload";
-const FACE_EXTRACT_URL    = FACE_SERVICE_URL.replace("/recognize", "/extract_vector"); 
-const RECOGNIZE_COOLDOWN  = 5000;
+// --- URL AI Services ---
+const SMART_SAFE_URL = "https://smart-safe.onrender.com/recognize";
+const AI_LIGHT_URL   = "https://ai-light.onrender.com/embed";
+const RECOGNIZE_COOLDOWN = 5000;
 
-// Supabase
 const { createClient } = require('@supabase/supabase-js');
-const SUPABASE_URL = process.env.SUPABASE_URL; 
-const SUPABASE_KEY = process.env.SUPABASE_KEY; 
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error("LỖI: Chưa cấu hình SUPABASE_URL hoặc SUPABASE_KEY");
-    process.exit(1);
-}
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com', port: 465, secure: true, 
@@ -60,68 +51,42 @@ const upload = multer({
   }
 });
 
-  console.log("[INIT] ✅ node-fetch đã sẵn sàng");
+const app    = express();
+app.use(cors());
+const server = http.createServer(app);
+app.use(express.static(path.join(__dirname)));
+app.use(express.json({ limit: "10mb" }));
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-  const app    = express();
-  app.use(cors());
-  const server = http.createServer(app);
+// --- CÁC API AUTH ---
+app.post('/api/auth/register', upload.single('photo'), async (req, res) => {
+    try {
+        const { full_name, email, password, fingerprint_id } = req.body;
+        if (!full_name || !email || !password) return res.status(400).json({ success: false, error: "Thiếu thông tin" });
+        
+        let faceVector = null;
+        if (req.file) {
+            const b64Image = req.file.buffer.toString("base64");
+            // Gọi ai_light trực tiếp lấy vector
+            const extractRes = await fetch(AI_LIGHT_URL, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: b64Image }),
+            });
+            const extractData = await extractRes.json();
+            if (extractData.embedding) faceVector = extractData.embedding;
+            else throw new Error("AI không nhận diện được khuôn mặt.");
+        }
 
-  app.use(express.static(path.join(__dirname)));
-  app.use(express.json({ limit: "10mb" }));
-  app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+        const password_hash = await bcrypt.hash(password, 10);
+        const { data: newUser, error: insertError } = await supabase
+            .from('accounts')
+            .insert([{ full_name, email, password_hash, face_vector: faceVector }]).select().single();
+        if (insertError) throw insertError;
+        res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
+    } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
 
-  // ==========================================
-  // CÁC API AUTH
-  // ==========================================
-  app.post('/api/auth/register', upload.single('photo'), async (req, res) => {
-      try {
-          const { full_name, email, password, fingerprint_id } = req.body;
-          if (!full_name || !email || !password) return res.status(400).json({ success: false, error: "Thiếu thông tin" });
-          if (password.length < 8) return res.status(400).json({ success: false, error: "Mật khẩu < 8 ký tự" });
-
-          const { data: existingUser } = await supabase.from('accounts').select('id').eq('email', email).maybeSingle();
-          if (existingUser) return res.status(409).json({ success: false, error: "Email đã tồn tại" });
-
-          let faceVector = null;
-          if (req.file) {
-              const b64Image = req.file.buffer.toString("base64");
-              const extractRes = await fetch(FACE_EXTRACT_URL, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  //method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                  body: JSON.stringify({ image: b64Image }),
-              });
-              const extractData = await extractRes.json();
-              if (extractData.success) faceVector = extractData.vector;
-              else throw new Error("AI không nhận diện được khuôn mặt.");
-          }
-
-          const password_hash = await bcrypt.hash(password, 10);
-          const fpIdParsed = parseInt(fingerprint_id);
-          const finalFingerprintId = isNaN(fpIdParsed) ? null : fpIdParsed;
-
-          const { data: newUser, error: insertError } = await supabase
-              .from('accounts')
-              .insert([{ 
-                  full_name, email, password_hash, role: 'user',
-                  fingerprint_id: finalFingerprintId, 
-                  face_vector: faceVector
-              }]).select('id, full_name, email, role').single();
-
-          if (insertError) throw insertError;
-
-          if (req.file) {
-              const personDir = path.join(DATA_FACE_DIR, `user_${newUser.id}`);
-              if (!fs.existsSync(personDir)) fs.mkdirSync(personDir, { recursive: true });
-              fs.writeFileSync(path.join(personDir, `${Date.now()}.jpg`), req.file.buffer);
-              try { await fetch(FACE_RELOAD_URL, { method: "POST", headers: { "ngrok-skip-browser-warning": "true" }}); } catch(e) {}
-          }
-          res.json({ success: true, message: "Đăng ký thành công!", user: newUser });
-      } catch (err) {
-          res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
-      }
-  });
-
-  app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ success: false, error: "Vui lòng nhập Email và Mật khẩu" });
@@ -164,37 +129,51 @@ const upload = multer({
           res.status(500).json({ success: false, error: "Lỗi máy chủ khi cập nhật" });
       }
   });
+app.post('/api/auth/update-face', upload.single('photo'), async (req, res) => {
+    try {
+        const user_id = req.body.user_id;
+        if (!user_id || !req.file) return res.status(400).json({ success: false, error: "Thiếu thông tin hoặc ảnh" });
 
-  app.post('/api/auth/update-face', upload.single('photo'), async (req, res) => {
-      try {
-          const user_id = req.body.user_id;
-          if (!user_id || !req.file) return res.status(400).json({ success: false, error: "Thiếu thông tin hoặc ảnh" });
+        const b64Image = req.file.buffer.toString("base64");
 
-          const b64Image = req.file.buffer.toString("base64");
-          const extractRes = await fetch(FACE_EXTRACT_URL, {
-              method: "POST", headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-              body: JSON.stringify({ image: b64Image }),
-          });
-          const extractData = await extractRes.json();
-          if (!extractData.success) throw new Error("Không nhận diện được khuôn mặt.");
+        // 1. Gọi smart-safe để cắt mặt (YOLO + FAS)
+        const resSmart = await fetch(SMART_SAFE_URL, {
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: b64Image }),
+        });
+        const dataSmart = await resSmart.json();
+        if (dataSmart.status !== "ok") throw new Error("Không phát hiện khuôn mặt thật hoặc ảnh giả mạo.");
 
-          const { error: updateError } = await supabase.from('accounts').update({ face_vector: extractData.vector }).eq('id', user_id);
-          if (updateError) throw updateError;
+        // 2. Gọi ai_light để lấy Vector từ khuôn mặt đã cắt
+        const resAi = await fetch(AI_LIGHT_URL, {
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: dataSmart.face }),
+        });
+        const dataAi = await resAi.json();
+        if (!dataAi.embedding) throw new Error("Không trích xuất được vector khuôn mặt.");
 
-          const personDir = path.join(DATA_FACE_DIR, `user_${user_id}`);
-          if (!fs.existsSync(personDir)) fs.mkdirSync(personDir, { recursive: true });
-          fs.writeFileSync(path.join(personDir, `${Date.now()}.jpg`), req.file.buffer);
+        // 3. Cập nhật vào Supabase
+        const { error: updateError } = await supabase
+            .from('accounts')
+            .update({ face_vector: dataAi.embedding })
+            .eq('id', user_id);
+        
+        if (updateError) throw updateError;
 
-          try { await fetch(FACE_RELOAD_URL, { method: "POST", headers: { "ngrok-skip-browser-warning": "true" } }); } catch(e) {}
-          res.json({ success: true, message: "Đã cập nhật dữ liệu khuôn mặt thành công!" });
-      } catch (err) {
-          res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
-      }
-  });
-    // ==========================================
-  // API: QUÊN MẬT KHẨU (GỬI MÃ OTP)
-  // ==========================================
-  app.post('/api/auth/forgot-password', async (req, res) => {
+        // Lưu ảnh dự phòng
+        const personDir = path.join(DATA_FACE_DIR, `user_${user_id}`);
+        if (!fs.existsSync(personDir)) fs.mkdirSync(personDir, { recursive: true });
+        fs.writeFileSync(path.join(personDir, `${Date.now()}.jpg`), req.file.buffer);
+
+        res.json({ success: true, message: "Đã cập nhật dữ liệu khuôn mặt thành công!" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message || "Lỗi máy chủ" });
+    }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
       try {
           const { email } = req.body;
           if (!email) return res.status(400).json({ success: false, error: "Vui lòng nhập Email" });
@@ -233,10 +212,7 @@ const upload = multer({
     }
   });
 
-  // ==========================================
-  // API: ĐẶT LẠI MẬT KHẨU TÀI KHOẢN
-  // ==========================================
-  app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', async (req, res) => {
       try {
           const { email, otp, new_password } = req.body;
           if (!email || !otp || !new_password) return res.status(400).json({ success: false, error: "Vui lòng nhập đủ thông tin" });
@@ -258,7 +234,63 @@ const upload = multer({
 
       } catch (err) { res.status(500).json({ success: false, error: "Lỗi máy chủ" }); }
   });
-  // ==========================================
+
+// --- LOGIC AI ĐIỀU PHỐI (RUN RECOGNITION) ---
+async function runRecognition(b64Image, timestamp) {
+  if (!b64Image || b64Image.length < 1000) return;
+  const cleanBase64 = b64Image.includes(',') ? b64Image.split(',')[1] : b64Image;
+
+  broadcast({ type: "recognizing", timestamp });
+
+  try {
+    // 1. Gọi smart-safe để lấy ảnh khuôn mặt
+    const resSmart = await fetch(SMART_SAFE_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: cleanBase64 }),
+    });
+    const dataSmart = await resSmart.json();
+    if (dataSmart.status !== "ok") return;
+
+    // 2. Gọi ai_light để lấy Vector
+    const resAi = await fetch(AI_LIGHT_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataSmart.face }),
+    });
+    const dataAi = await resAi.json();
+    
+    // 3. So sánh tại server
+    const bestMatch = await compareWithDatabase(dataAi.embedding);
+
+    // 4. Xử lý kết quả
+    if (bestMatch.recognized) {
+      publishUnlock(bestMatch.name);
+      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "ok", name: bestMatch.name, timestamp }), { qos: 1 });
+    }
+  } catch (err) { console.error("LỖI ĐIỀU PHỐI:", err.message); }
+}
+
+async function compareWithDatabase(inputVector) {
+    const { data: users } = await supabase.from('accounts').select('full_name, face_vector');
+    let bestName = "Unknown";
+    let minDistance = 0.4; 
+
+    if (!users) return { recognized: false };
+    for (const user of users) {
+        if (!user.face_vector) continue;
+        let dot = 0, ma = 0, mb = 0;
+        for(let i=0; i<512; i++) {
+            dot += inputVector[i] * user.face_vector[i];
+            ma += inputVector[i] * inputVector[i];
+            mb += user.face_vector[i] * user.face_vector[i];
+        }
+        const dist = 1 - (dot / (Math.sqrt(ma) * Math.sqrt(mb)));
+        if (dist < minDistance) { minDistance = dist; bestName = user.full_name; }
+    }
+    return { recognized: bestName !== "Unknown", name: bestName };
+}
+
+// --- MQTT & WEBSOCKET (GIỮ NGUYÊN PHẦN CŨ) ---
+// ==========================================
   // WEBSOCKET SERVER
   // ==========================================
   const wss = new WebSocket.Server({ server });
@@ -275,7 +307,6 @@ const upload = multer({
       try {
         const msg = JSON.parse(data);
         if (msg.type === "manual_unlock") publishUnlock("MANUAL");
-        else if (msg.type === "reload_faces") reloadFaces();
         else if (msg.type === "finger_enroll") {
           
           const { data: accounts, error: dbErr } = await supabase.from('accounts').select('fingerprint_id');
@@ -368,77 +399,4 @@ const upload = multer({
     }
   });
 
-  async function runRecognition(b64Image, timestamp) {
-  // 1. Kiểm tra dữ liệu ảnh đầu vào
-  if (!b64Image || b64Image.length < 1000) {
-    console.warn("Ảnh quá nhỏ hoặc bị lỗi, bỏ qua không gửi sang AI.");
-    return;
-  }
-
-  // 2. Làm sạch Base64 (phòng trường hợp dính header data:image/jpeg;...)
-  const cleanBase64 = b64Image.includes(',') ? b64Image.split(',')[1] : b64Image;
-
-  broadcast({ type: "recognizing", timestamp });
-
-  try {
-    console.log(`Đang gửi ảnh sang AI... (Độ dài: ${cleanBase64.length})`);
-    console.log("DEBUG: Đang gửi tới URL:", FACE_SERVICE_URL);
-    const res = await fetch(FACE_SERVICE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" }, // Xóa bỏ ngrok-skip header
-      body: JSON.stringify({ image: cleanBase64 }),
-    });
-
-    // 3. Xử lý lỗi HTTP chi tiết
-    if (!res.ok) {
-      const errorText = await res.text(); // Đọc nội dung lỗi từ AI trả về
-      throw new Error(`AI Service phản hồi lỗi ${res.status}: ${errorText}`);
-    }
-
-    const result = await res.json();
-    console.log("Kết quả nhận diện từ AI:", result);
-    broadcast({ type: "recognition_result", ...result, timestamp });
-
-    // 4. Logic xử lý kết quả
-    if (result.recognized) {
-      publishUnlock(result.name);
-      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ 
-        result: "ok", 
-        name: result.name, 
-        confidence: parseFloat((result.confidence * 100).toFixed(1)), 
-        timestamp 
-      }), { qos: 1 });
-    } else if (result.detected) {
-      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "fail", name: "Unknown", timestamp }), { qos: 1 });
-    } else {
-      mqttClient.publish(TOPIC_FACE_RESULT, JSON.stringify({ result: "noface", timestamp }), { qos: 1 });
-    }
-
-  } catch (err) {
-    console.error("LỖI GỌI AI:", err.message);
-    broadcast({ type: "face_service_error", error: err.message, timestamp });
-  }
-}
-
-  function publishUnlock(name) {
-    const payload = JSON.stringify({ cmd: "UNLOCK", name, timestamp: new Date().toISOString() });
-    mqttClient.publish(TOPIC_CMD, payload, { qos: 1 }, (err) => {
-      if (!err) broadcast({ type: "unlock_sent", name, timestamp: new Date().toISOString() });
-    });
-  }
-
-  async function reloadFaces() {
-    try {
-      const res  = await fetch(FACE_RELOAD_URL, { method: "POST", headers: { "ngrok-skip-browser-warning": "true" } });
-      const data = await res.json();
-      broadcast({ type: "faces_reloaded", count: data.count, names: data.names });
-    } catch (err) {}
-  }
-
-  server.listen(WS_PORT, () => {
-    console.log(`\n──────────────────────────────────────────────────`);
-    console.log(`🚀 Server: http://localhost:${WS_PORT}`);
-    console.log(`📡 WebSocket: ws://localhost:${WS_PORT}`);
-    console.log(`──────────────────────────────────────────────────\n`);
-  });
-
+server.listen(WS_PORT, () => console.log(`🚀 Server running on port ${WS_PORT}`));
