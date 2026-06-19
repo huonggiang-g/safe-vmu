@@ -127,7 +127,15 @@
     </div>
   </div>
 </main>
+<button class="btn btn-secondary" onclick="openAddSafeModal()">+ Thêm két sắt mới</button>
 
+<div id="addSafeModal" class="hidden" style="position:fixed; top:20%; left:50%; transform:translateX(-50%); background:white; padding:20px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.3); z-index:1000;">
+    <h3>Tham gia két sắt</h3>
+    <input type="text" id="serialInput" placeholder="Nhập Serial Number..." class="input-field" style="display:block; width:100%; margin-bottom:10px; padding:8px;">
+    <input type="text" id="inviteCodeInput" placeholder="Nhập mã lời mời..." class="input-field" style="display:block; width:100%; margin-bottom:15px; padding:8px;">
+    <button class="btn btn-secondary" onclick="joinSafe()">Xác nhận tham gia</button>
+    <button onclick="document.getElementById('addSafeModal').classList.add('hidden')" style="margin-left:10px;">Hủy</button>
+</div>
 <footer>
   <div>SAFE SURVEILLANCE SYSTEM v1.0</div>
 </footer>
@@ -379,6 +387,37 @@ function startEnroll() {
   } else {
     addLog("error", "Lỗi: Không thể kết nối với hệ thống vân tay (WebSocket offline)");
   }
+}
+
+function openAddSafeModal() {
+    document.getElementById('addSafeModal').classList.remove('hidden');
+}
+
+async function joinSafe() {
+    const serial_number = document.getElementById('serialInput').value;
+    const invite_code = document.getElementById('inviteCodeInput').value;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/safe/join-by-code`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                user_id: user.id, 
+                serial_number: serial_number, 
+                invite_code: invite_code 
+            })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+            alert("Tham gia két thành công!");
+            location.reload(); // Tải lại trang để cập nhật danh sách két
+        } else {
+            alert("Lỗi: " + result.error);
+        }
+    } catch (e) {
+        console.error(e);
+    }
 }
 // ════ FINGERPRINT ════
 function handleFingerStatus(msg) {
