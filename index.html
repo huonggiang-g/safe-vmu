@@ -474,11 +474,28 @@ async function transferOwner(newOwnerId) {
 }
 
 async function checkRole() {
-    const res = await fetch(`${API_BASE}/safe/my-role?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
-    const data = await res.json();
-    if (data.role === 'owner') {
-        document.getElementById('adminSection').style.display = 'block';
-        loadMemberList();
+    const user = getCurrentUser(); // Lấy thông tin user hiện tại
+    if (!user) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/safe/my-role?safe_id=${targetSafeId}`, { 
+            headers: {
+                ...getAuthHeaders(), // Giữ header cũ của bạn (vd: Authorization token)
+                'x-user-id': user.id  // Gửi thêm user.id qua header này
+            } 
+        });
+        
+        if (!res.ok) throw new Error("API lỗi");
+        
+        const data = await res.json();
+        
+        // Nếu là owner, hiển thị bảng quản trị
+        if (data.role === 'owner') {
+            document.getElementById('adminSection').style.display = 'block';
+            loadMemberList();
+        }
+    } catch (err) {
+        console.error("Lỗi khi kiểm tra quyền:", err);
     }
 }
 // Gọi checkRole khi trang tải xong
