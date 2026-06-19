@@ -280,6 +280,125 @@ app.post('/api/history/view', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+app.get('/api/safe/my-role', async (req, res) => {
+    try {
+        const { safe_id } = req.query; // Nhận từ query string
+        const user_id = req.user.id;   // Lấy từ session/auth hiện tại
+
+        // Dịch serial sang UUID trước (như chúng ta đã làm với API history)
+        const { data: safeData } = await supabase.from('safes').select('id').eq('serial_number', safe_id).single();
+        if (!safeData) return res.status(404).json({ error: "Không tìm thấy két" });
+
+        const { data: member } = await supabase
+            .from('safe_members')
+            .select('role')
+            .eq('safe_id', safeData.id)
+            .eq('user_id', user_id)
+            .single();
+
+        res.json({ role: member ? member.role : null });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/safe/members', async (req, res) => {
+    try {
+        const { safe_id } = req.query; // Nhận Serial Number
+        
+        // Dịch Serial sang UUID
+        const { data: safeData } = await supabase.from('safes').select('id').eq('serial_number', safe_id).single();
+        if (!safeData) return res.status(404).json({ error: "Két không tồn tại" });
+
+        // Lấy danh sách thành viên và tên của họ
+        const { data: members, error } = await supabase
+            .from('safe_members')
+            .select('user_id, role, accounts(full_name)')
+            .eq('safe_id', safeData.id);
+
+        if (error) throw error;
+        res.json({ members });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/safe/add-member', async (req, res) => {
+    try {
+        const { safe_id, email, role } = req.body;
+
+        // 1. Tìm user_id từ email trong bảng accounts
+        const { data: userData } = await supabase.from('accounts').select('id').eq('email', email).single();
+        if (!userData) return res.status(404).json({ error: "Không tìm thấy người dùng có email này" });
+
+        // 2. Dịch Serial sang UUID
+        const { data: safeData } = await supabase.from('safes').select('id').eq('serial_number', safe_id).single();
+
+        // 3. Insert vào bảng safe_members
+        const { error } = await supabase.from('safe_members').insert({
+            safe_id: safeData.id,
+            user_id: userData.id,
+            role: role || 'user'
+        });
+
+        if (error) return res.status(400).json({ error: "Người dùng này đã tồn tại trong két" });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/safe/transfer-owner', async (req, res) => {
+    try {
+        const { safe_id, new_owner_id, current_owner_id } = req.body;
+        const { data: safeData } = await supabase.from('safes').select('id').eq('serial_number', safe_id).single();
+
+        // Transaction: Hạ cấp chủ cũ và nâng cấp chủ mới
+        // Lưu ý: Trong Supabase bạn có thể dùng lệnh update liên tiếp
+        await supabase.from('safe_members').update({ role: 'user' }).eq('safe_id', safeData.id).eq('user_id', current_owner_id);
+        await supabase.from('safe_members').update({ role: 'owner' }).eq('safe_id', safeData.id).eq('user_id', new_owner_id);
+
+        res.json({ success: true, message: "Đã nhượng quyền thành công!" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/safe/join-by-code', async (req, res) => {
+    try {
+        const { user_id, serial_number, invite_code } = req.body;
+
+        // 1. Lấy thông tin két từ Serial Number
+        const { data: safe } = await supabase.from('safes').select('id').eq('serial_number', serial_number).single();
+        if (!safe) return res.status(404).json({ error: "Không tìm thấy két sắt" });
+
+        // 2. Kiểm tra mã lời mời
+        const { data: invite } = await supabase
+            .from('safe_invitations')
+            .select('*')
+            .eq('safe_id', safe.id)
+            .eq('invite_code', invite_code)
+            .eq('is_used', false)
+            .single();
+
+        if (!invite) return res.status(400).json({ error: "Mã không hợp lệ hoặc đã được sử dụng" });
+
+        // 3. Gán quyền vào bảng safe_members với ROLE từ bảng mời
+        await supabase.from('safe_members').insert({
+            safe_id: safe.id,
+            user_id: user_id,
+            role: invite.role // Role được xác định ngay từ lúc tạo mã
+        });
+
+        // 4. Đánh dấu mã đã dùng
+        await supabase.from('safe_invitations').update({ is_used: true }).eq('id', invite.id);
+
+        res.json({ success: true, message: `Tham gia két ${serial_number} thành công với quyền ${invite.role}!` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // --- LOGIC AI ĐIỀU PHỐI (RUN RECOGNITION) ---
 async function runRecognition(b64Image, timestamp) {
     if (!b64Image || b64Image.length < 1000) return;
