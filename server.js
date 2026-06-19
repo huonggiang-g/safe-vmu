@@ -251,10 +251,9 @@ app.post('/api/history/view', async (req, res) => {
         // Chúng ta lấy tất cả từ unlock_logs và chỉ lấy full_name từ accounts
         const { data: logs, error } = await supabase
             .from('unlock_logs')
-            .select('*, accounts(full_name)') 
+            .select('*, accounts(full_name), safes(serial_number)') 
             .eq('safe_id', safeData.id)
             .order('attempted_at', { ascending: false });
-
         if (error) throw error;
         
         res.json({ success: true, logs: logs });
