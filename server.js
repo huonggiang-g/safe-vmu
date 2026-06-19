@@ -414,11 +414,5 @@ async function compareWithDatabase(inputVector) {
     }
   });
 
-// Ping định kỳ để giữ ai_light luôn hoạt động
-setInterval(() => {
-    fetch("https://ai-light.onrender.com/health")
-        .then(() => console.log("Ping ai_light thành công"))
-        .catch(err => console.error("Ping ai_light lỗi:", err.message));
-}, 300000); // 300.000ms = 5 phút một lần
 
 server.listen(WS_PORT, () => console.log(`🚀 Server running on port ${WS_PORT}`));
