@@ -284,6 +284,7 @@ app.post('/api/history/view', async (req, res) => {
 app.get('/api/safe/my-role', async (req, res) => {
     try {
         const { safe_id } = req.query; // Nhận từ query string
+        console.log("DEBUG: Nhận request my-role với safe_id:", safe_id);
         const user_id = req.user.id;   // Lấy từ session/auth hiện tại
 
         // Dịch serial sang UUID trước (như chúng ta đã làm với API history)
@@ -299,6 +300,7 @@ app.get('/api/safe/my-role', async (req, res) => {
 
         res.json({ role: member ? member.role : null });
     } catch (err) {
+        console.error("DEBUG: Lỗi tại API my-role:", err);
         res.status(500).json({ error: err.message });
     }
 });
