@@ -213,7 +213,7 @@
         return `
           <tr>
             <td class="mono" style="font-size:0.8rem;color:var(--text-2);">${time}</td>
-            <td style="font-weight:500;color:var(--accent);">${log.actor_id || 'N/A'}</td>
+            <td style="font-weight:500;color:var(--accent);">${log.accounts ? log.accounts.full_name : 'Unknown'}</td>
             <td style="color:var(--text-2);font-size:0.85rem;">${methodDisplay}</td>
             <td class="mono" style="font-size:0.75rem;color:var(--muted);">${log.safe_id}</td>
             <td>${statusBadge}</td>
