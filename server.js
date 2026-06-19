@@ -236,13 +236,24 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/history/view', async (req, res) => {
     try {
-        const { user_id, safe_id } = req.body;
+        const { user_id, safe_id } = req.body; // safe_id đang là 'SN-2026-00001'
 
-        // 1. Lấy thông tin quyền hạn của user này với két sắt này
+        // BƯỚC 1: Tìm UUID thật từ Serial Number
+        const { data: safeData } = await supabase
+            .from('safes')
+            .select('id')
+            .eq('serial_number', safe_id)
+            .single();
+
+        if (!safeData) return res.status(404).json({ success: false, message: "Két sắt không tồn tại" });
+        
+        const realSafeId = safeData.id; // Đây mới là UUID chuẩn
+
+        // BƯỚC 2: Kiểm tra quyền dựa trên UUID chuẩn
         const { data: member, error: memberError } = await supabase
             .from('safe_members')
             .select('role')
-            .eq('safe_id', safe_id)
+            .eq('safe_id', realSafeId)
             .eq('user_id', user_id)
             .single();
 
@@ -250,14 +261,13 @@ app.post('/api/history/view', async (req, res) => {
             return res.status(403).json({ success: false, message: "Bạn không có quyền truy cập két này" });
         }
 
-        // 2. Xây dựng truy vấn
+        // BƯỚC 3: Truy vấn logs với realSafeId (UUID)
         let query = supabase
             .from('unlock_logs')
             .select('*, accounts(full_name), safes(serial_number)')
-            .eq('safe_id', safe_id)
+            .eq('safe_id', realSafeId)
             .order('attempted_at', { ascending: false });
 
-        // 3. Phân quyền: Nếu là 'user', chỉ được xem lịch sử của chính mình
         if (member.role === 'user') {
             query = query.eq('actor_id', user_id);
         }
