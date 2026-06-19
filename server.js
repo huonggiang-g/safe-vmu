@@ -236,18 +236,29 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/history/view', async (req, res) => {
     try {
-        const { safe_id } = req.body;
+        const { safe_id } = req.body; // Đây là giá trị serial_number bạn gửi từ frontend
         
-        // Truy vấn với tên bảng và tên cột chính xác
-        const { data: logs, error } = await supabase
+        // 1. Tìm UUID của két sắt trong bảng 'safes' dựa trên 'serial_number'
+        // Thay 'safes' bằng tên bảng chứa serial_number của bạn
+        const { data: safeData, error: safeError } = await supabase
+            .from('safes') 
+            .select('id')
+            .eq('serial_number', safe_id) // Tìm dựa trên serial_number
+            .single();
+
+        if (safeError || !safeData) {
+            throw new Error("Không tìm thấy két sắt với serial number này");
+        }
+
+        // 2. Dùng UUID tìm được (safeData.id) để truy vấn bảng log
+        const { data: logs, error: logError } = await supabase
             .from('unlock_logs') 
             .select('*')
-            .eq('safe_id', safe_id || "SAFE_VMU_01")
-            .order('attempted_at', { ascending: false }); // Sửa 'timestamp' thành 'attempted_at'
+            .eq('safe_id', safeData.id) // Truy vấn bằng UUID chuẩn
+            .order('attempted_at', { ascending: false });
 
-        if (error) throw error;
+        if (logError) throw logError;
         
-        // Trả về dữ liệu
         res.json({ success: true, logs: logs });
     } catch (err) {
         console.error("Lỗi API history:", err);
