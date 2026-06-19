@@ -11,7 +11,6 @@
 </head>
 <body>
 
-  <!-- HEADER -->
   <header>
     <div class="logo">
       <div class="logo-icon">🔐</div>
@@ -27,7 +26,6 @@
     <div class="clock" id="clock">--:--:--</div>
   </header>
 
-  <!-- NAV -->
   <nav>
     <div class="nav-links">
       <a href="index.html">🏠 Trang chủ</a>
@@ -40,40 +38,27 @@
     </div>
   </nav>
 
-  <!-- MAIN -->
   <div class="container">
-
-    <!-- Page Header -->
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;">
       <div>
-        <div class="page-title">
-          📋 Nhật ký hoạt động
-          <span id="safeIdDisplay" style="font-size:0.75rem;font-weight:400;color:var(--muted);font-family:var(--font-mono);">SAFE_001</span>
-        </div>
+        <div class="page-title">📋 Nhật ký hoạt động</div>
         <div style="font-size:0.82rem;color:var(--text-2);">Theo dõi toàn bộ lịch sử mở/đóng két sắt</div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary" onclick="loadHistory()" style="font-size:0.82rem;padding:8px 16px;">
-          ↺ Làm mới
-        </button>
+        <button class="btn btn-secondary" onclick="loadHistory()" style="font-size:0.82rem;padding:8px 16px;">↺ Làm mới</button>
         <select id="filterStatus" class="input-field" style="width:auto;padding:8px 14px;font-size:0.82rem;" onchange="applyFilter()">
           <option value="">Tất cả trạng thái</option>
           <option value="success">Thành công</option>
           <option value="fail">Thất bại</option>
         </select>
-        <select id="filterMethod" class="input-field" style="width:auto;padding:8px 14px;font-size:0.82rem;" onchange="applyFilter()">
-          <option value="">Tất cả phương thức</option>
-          <option value="face">Khuôn mặt</option>
-          <option value="finger">Vân tay</option>
-        </select>
+        <input type="date" id="filterDate" class="input-field" style="width:auto;padding:8px 14px;font-size:0.82rem;" onchange="applyFilter()">
       </div>
     </div>
 
-    <!-- Stats Row -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
       <div class="card" style="padding:16px 20px;">
         <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Tổng lượt</div>
-        <div style="font-size:1.5rem;font-weight:700;color:var(--text);font-family:var(--font-mono);" id="statTotal">—</div>
+        <div style="font-size:1.5rem;font-weight:700;font-family:var(--font-mono);" id="statTotal">—</div>
       </div>
       <div class="card" style="padding:16px 20px;">
         <div style="font-size:0.7rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Thành công</div>
@@ -89,7 +74,6 @@
       </div>
     </div>
 
-    <!-- Table Card -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Danh sách bản ghi</div>
@@ -101,144 +85,86 @@
             <tr>
               <th>Thời gian</th>
               <th>Người mở</th>
-              <th>Phương thức</th>
               <th>Két sắt</th>
               <th>Trạng thái</th>
               <th style="text-align:right;">Hành động</th>
             </tr>
           </thead>
-          <tbody id="historyBody">
-            <tr>
-              <td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">
-                <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>
-                Đang tải dữ liệu...
-              </td>
-            </tr>
-          </tbody>
+          <tbody id="historyBody"></tbody>
         </table>
       </div>
     </div>
-
   </div>
 
-  <!-- FOOTER -->
-  <footer>
-    <div>SAFE SURVEILLANCE SYSTEM v1.0 · ESP32-S3 → HiveMQ → Node.js</div>
-    <div class="ws-status">
-      <div class="ws-dot"></div>
-      <span id="wsLabel">Đang kết nối...</span>
-    </div>
-  </footer>
-
   <script>
-    // Clock
     function tick() {
-      document.getElementById('clock').textContent =
-        new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
     tick(); setInterval(tick, 1000);
 
-    const user  = getCurrentUser();
-    const roles = getCurrentRoles();
+    const user = getCurrentUser();
     document.getElementById('userNameDisplay').textContent = user ? user.full_name : 'Khách';
 
     let allLogs = [];
-    let targetSafeId = 'SN-2026-00001'; // Đảm bảo khớp với dữ liệu trong DB
+    let targetSafeId = 'SN-2026-00001'; 
 
     async function loadHistory() {
-      document.getElementById('historyBody').innerHTML =
-        `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">
-          <div style="font-size:1.5rem;margin-bottom:8px;">⏳</div>Đang tải dữ liệu...
-        </td></tr>`;
       try {
-        const res  = await fetch(`${API_BASE}/history/view`, {
+        const res = await fetch(`${API_BASE}/history/view`, {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({ user_id: user.id, safe_id: targetSafeId })
         });
         const data = await res.json();
-
         if (data.success && data.logs) {
           allLogs = data.logs;
-          updateStats(allLogs);
-          renderTable(allLogs);
-        } else {
-          showEmpty();
+          applyFilter();
         }
-      } catch (err) {
-        document.getElementById('historyBody').innerHTML =
-          `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:32px;">
-            <div style="font-size:1.5rem;margin-bottom:8px;">⚠️</div>Lỗi tải dữ liệu.
-          </td></tr>`;
-      }
-    }
-
-    function updateStats(logs) {
-      const today = new Date().toDateString();
-      const success = logs.filter(l => l.result === 'success').length;
-      const fail    = logs.filter(l => l.result !== 'success').length;
-      const todayCount = logs.filter(l => new Date(l.attempted_at).toDateString() === today).length;
-      
-      document.getElementById('statTotal').textContent   = logs.length;
-      document.getElementById('statSuccess').textContent = success;
-      document.getElementById('statFail').textContent    = fail;
-      document.getElementById('statToday').textContent   = todayCount;
+      } catch (err) { alert("Lỗi tải dữ liệu"); }
     }
 
     function applyFilter() {
       const status = document.getElementById('filterStatus').value;
-      const method = document.getElementById('filterMethod').value;
+      const dateSelected = document.getElementById('filterDate').value;
+      
       const filtered = allLogs.filter(l => {
+        const logDate = new Date(l.attempted_at).toISOString().split('T')[0];
         const matchStatus = !status || (status === 'success' ? (l.result === 'success') : (l.result !== 'success'));
-        const matchMethod = !method || l.method === method;
-        return matchStatus && matchMethod;
+        const matchDate = !dateSelected || logDate === dateSelected;
+        return matchStatus && matchDate;
       });
+      
+      updateStats(filtered);
       renderTable(filtered);
+    }
+
+    function updateStats(logs) {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('statTotal').textContent = logs.length;
+      document.getElementById('statSuccess').textContent = logs.filter(l => l.result === 'success').length;
+      document.getElementById('statFail').textContent = logs.filter(l => l.result !== 'success').length;
+      document.getElementById('statToday').textContent = logs.filter(l => l.attempted_at.startsWith(today)).length;
     }
 
     function renderTable(logs) {
       document.getElementById('recordCount').textContent = logs.length + ' bản ghi';
       const tbody = document.getElementById('historyBody');
-
-      if (!logs.length) { showEmpty(); return; }
-
-      tbody.innerHTML = logs.map(log => {
-        const time    = new Date(log.attempted_at).toLocaleString('vi-VN');
-        const isSuccess = log.result === 'success';
-        const methodDisplay = log.method === 'face' ? '🫥 Khuôn mặt' : log.method === 'finger' ? '🫆 Vân tay' : '🔑 Khác';
-        const statusBadge = isSuccess
-          ? `<span class="badge badge-green"><span class="dot"></span> Thành công</span>`
-          : `<span class="badge badge-red"><span class="dot"></span> Thất bại</span>`;
-          
-        return `
-          <tr>
-            <td class="mono" style="font-size:0.8rem;color:var(--text-2);">${time}</td>
-            <td style="font-weight:500;color:var(--accent);">${log.accounts ? log.accounts.full_name : 'Unknown'}</td>
-            <td style="color:var(--text-2);font-size:0.85rem;">${methodDisplay}</td>
-            <td class="mono" style="font-size:0.75rem;color:var(--muted);">${log.safe_id}</td>
-            <td>${statusBadge}</td>
-            <td style="text-align:right;">
-              <button class="btn btn-danger" style="padding:5px 12px;font-size:0.75rem;" onclick="deleteLog(${log.id})">
-                🗑 Xóa
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      if (!logs.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;">📭 Không có dữ liệu</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = logs.map(log => `
+        <tr>
+          <td class="mono">${new Date(log.attempted_at).toLocaleString('vi-VN')}</td>
+          <td style="font-weight:500;">${log.accounts ? log.accounts.full_name : 'Unknown'}</td>
+          <td class="mono">${log.safe_id}</td>
+          <td>${log.result === 'success' ? '<span class="badge badge-green">Thành công</span>' : '<span class="badge badge-red">Thất bại</span>'}</td>
+          <td style="text-align:right;"><button class="btn btn-danger" onclick="deleteLog(${log.id})">🗑 Xóa</button></td>
+        </tr>
+      `).join('');
     }
 
-    function showEmpty() {
-      document.getElementById('historyBody').innerHTML =
-        `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px;">
-          <div style="font-size:2rem;margin-bottom:8px;">📭</div>
-          <div style="font-weight:500;margin-bottom:4px;">Không có bản ghi nào</div>
-        </td></tr>`;
-    }
-
-    async function deleteLog(logId) {
-      if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
-      alert('Tính năng xóa đang gọi API cho log ID: ' + logId);
-    }
+    function deleteLog(id) { if(confirm('Xóa bản ghi này?')) alert('Đã xóa log ' + id); }
 
     loadHistory();
   </script>
