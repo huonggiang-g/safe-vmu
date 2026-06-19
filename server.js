@@ -236,29 +236,37 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/history/view', async (req, res) => {
     try {
-        const { safe_id } = req.body;
+        const { user_id, safe_id } = req.body;
 
-        // 1. Tìm UUID của két sắt trước (như cũ)
-        const { data: safeData } = await supabase
-            .from('safes')
-            .select('id')
-            .eq('serial_number', safe_id)
+        // 1. Lấy thông tin quyền hạn của user này với két sắt này
+        const { data: member, error: memberError } = await supabase
+            .from('safe_members')
+            .select('role')
+            .eq('safe_id', safe_id)
+            .eq('user_id', user_id)
             .single();
 
-        if (!safeData) throw new Error("Không tìm thấy két sắt");
+        if (memberError || !member) {
+            return res.status(403).json({ success: false, message: "Bạn không có quyền truy cập két này" });
+        }
 
-        // 2. Truy vấn log KÈM VỚI TÊN người dùng từ bảng accounts
-        // Chúng ta lấy tất cả từ unlock_logs và chỉ lấy full_name từ accounts
-        const { data: logs, error } = await supabase
+        // 2. Xây dựng truy vấn
+        let query = supabase
             .from('unlock_logs')
-            .select('*, accounts(full_name), safes(serial_number)') 
-            .eq('safe_id', safeData.id)
+            .select('*, accounts(full_name), safes(serial_number)')
+            .eq('safe_id', safe_id)
             .order('attempted_at', { ascending: false });
+
+        // 3. Phân quyền: Nếu là 'user', chỉ được xem lịch sử của chính mình
+        if (member.role === 'user') {
+            query = query.eq('actor_id', user_id);
+        }
+
+        const { data: logs, error } = await query;
         if (error) throw error;
-        
+
         res.json({ success: true, logs: logs });
     } catch (err) {
-        console.error("Lỗi:", err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
