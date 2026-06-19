@@ -82,6 +82,20 @@
   </div>
 
   <div class="sidebar">
+    <div class="card" id="adminSection" style="margin-bottom: 20px; display: none;">
+      <div class="card-header" style="background: var(--accent); color: white; padding: 10px 15px; border-radius: 8px 8px 0 0;">
+        <div class="card-title" style="color: white;">🛡 Quản trị Két sắt</div>
+      </div>
+      <div style="padding: 15px;">
+        <div style="margin-bottom: 15px; display:flex; gap:5px;">
+          <input type="email" id="newMemberEmail" placeholder="Email người dùng..." class="input-field" style="flex:1; padding:8px;">
+          <button class="btn btn-secondary" onclick="addMember()">Thêm</button>
+        </div>
+        <div id="memberList" style="font-size: 0.75rem;">
+          </div>
+      </div>
+    </div>
+    
     <div class="log-card">
       <div class="log-header">
         <div class="log-title">📋 Nhật ký sự kiện</div>
@@ -389,7 +403,35 @@ function renderFingerList(db) {
     </div>
   `).join("");
 }
+// --- LOGIC QUẢN TRỊ ---
+async function loadMemberList() {
+    try {
+        const res = await fetch(`${API_BASE}/api/safe/members?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        
+        // Hiển thị danh sách thành viên
+        const listDiv = document.getElementById('memberList');
+        listDiv.innerHTML = data.members.map(m => `
+            <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #eee;">
+                <span>${m.accounts.full_name} (${m.role})</span>
+                ${m.role !== 'owner' ? `<button onclick="transferOwner('${m.user_id}')" style="color:var(--accent); border:none; background:none; cursor:pointer;">Nhượng quyền</button>` : '<span>👑</span>'}
+            </div>
+        `).join('');
+    } catch (e) { console.error(e); }
+}
 
+// Kiểm tra quyền và ẩn/hiện Admin Section
+async function checkRole() {
+    const res = await fetch(`${API_BASE}/api/safe/my-role?safe_id=${targetSafeId}`, { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (data.role === 'owner') {
+        document.getElementById('adminSection').style.display = 'block';
+        loadMemberList();
+    }
+}
+
+// Gọi checkRole khi trang tải xong
+document.addEventListener('DOMContentLoaded', checkRole);
 // Bắt đầu kết nối tự động
 connect();
 </script>
