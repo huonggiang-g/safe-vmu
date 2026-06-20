@@ -10,8 +10,6 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const fetch = require('node-fetch'); // Đảm bảo đã cài: npm install node-fetch@2
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-
 const MQTT_BROKER          = "mqtts://e539507d822e4b348dc6f0af2600bd01.s1.eu.hivemq.cloud:8883";
 const MQTT_USER            = "ketsat";
 const MQTT_PASS            = "Ket123456";
