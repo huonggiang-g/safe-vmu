@@ -33,7 +33,7 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', port: 465, secure: true, 
+    host: 'smtp.gmail.com', port: 587, secure: false, family: 4, // p 465, s t 
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     tls: { rejectUnauthorized: false }
 });
