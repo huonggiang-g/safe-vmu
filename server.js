@@ -9,7 +9,6 @@ const multer = require("multer");
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const fetch = require('node-fetch'); // Đảm bảo đã cài: npm install node-fetch@2
-const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
