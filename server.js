@@ -32,12 +32,6 @@ const RECOGNIZE_COOLDOWN = 5000;
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', port: 587, secure: false, family: 4, // p 465, s t 
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    tls: { rejectUnauthorized: false }
-});
-
 const DATA_FACE_DIR = path.join(__dirname, "data_face");
 if (!fs.existsSync(DATA_FACE_DIR)) fs.mkdirSync(DATA_FACE_DIR, { recursive: true });
 
@@ -173,44 +167,59 @@ app.post('/api/auth/update-face', upload.single('photo'), async (req, res) => {
 });
 
 app.post('/api/auth/forgot-password', async (req, res) => {
-      try {
-          const { email } = req.body;
-          if (!email) return res.status(400).json({ success: false, error: "Vui lòng nhập Email" });
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, error: "Vui lòng nhập Email" });
 
-          const { data: user } = await supabase.from('accounts').select('id, full_name').eq('email', email).single();
-          if (!user) return res.status(404).json({ success: false, error: "Email không tồn tại trong hệ thống" });
+        // 1. Kiểm tra user tồn tại
+        const { data: user } = await supabase.from('accounts').select('id, full_name').eq('email', email).single();
+        if (!user) return res.status(404).json({ success: false, error: "Email không tồn tại trong hệ thống" });
 
-          const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-          const expiresAt = new Date();
-          expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+        // 2. Tạo OTP
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date();
+        expiresAt.setMinutes(expiresAt.getMinutes() + 5);
 
-          const { error: updateError } = await supabase
-              .from('accounts').update({ otp_code: otpCode, otp_expires_at: expiresAt.toISOString() }).eq('id', user.id);
+        // 3. Lưu OTP vào Supabase
+        const { error: updateError } = await supabase
+            .from('accounts')
+            .update({ otp_code: otpCode, otp_expires_at: expiresAt.toISOString() })
+            .eq('id', user.id);
 
-          if (updateError) throw updateError;
+        if (updateError) throw updateError;
 
-          const mailOptions = {
-              from: `"Hệ thống SAFE VMU" <${process.env.EMAIL_USER}>`,
-              to: email,
-              subject: "Mã OTP Đặt Lại Mật Khẩu",
-              html: `
-                  <h3>Xin chào ${user.full_name},</h3>
-                  <p>Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu. Dưới đây là mã xác thực OTP của bạn:</p>
-                  <h2 style="color: #00e5ff; background: #0c1018; padding: 12px; display: inline-block; border-radius: 4px; letter-spacing: 5px;">${otpCode}</h2>
-                  <p>Mã này sẽ hết hạn sau <strong>5 phút</strong>.</p>
-                  <p>Nếu bạn không yêu cầu, vui lòng phớt lờ email này để bảo vệ tài khoản.</p>
-              `
-          };
+        // 4. Gửi email qua Mailtrap API (Không dùng Nodemailer)
+        const content = `
+            <h3>Xin chào ${user.full_name},</h3>
+            <p>Bạn đã yêu cầu đặt lại mật khẩu. Mã OTP của bạn là:</p>
+            <h2 style="color: #00e5ff; background: #0c1018; padding: 12px; display: inline-block; border-radius: 4px; letter-spacing: 5px;">${otpCode}</h2>
+            <p>Mã này sẽ hết hạn sau <strong>5 phút</strong>.</p>
+        `;
 
-          await transporter.sendMail(mailOptions);
-          res.json({ success: true, message: "Mã OTP đã được gửi đến email của bạn!" });
+        const response = await fetch("https://send.api.mailtrap.io/api/send", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer d463f03febe48efd33ae315d54744f89", 
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "from": { "email": "hello@demomailtrap.co", "name": "Safe VMU System" },
+                "to": [{ "email": email }],
+                "subject": "Mã OTP Đặt Lại Mật Khẩu",
+                "html": content
+            })
+        });
 
-      } catch (err) { 
-        console.error("DEBUG LỖI GỬI MAIL:", err); // DÒNG NÀY RẤT QUAN TRỌNG
-        res.status(500).json({ success: false, error: err.message }); 
+        const result = await response.json();
+        if (!response.ok) throw new Error(JSON.stringify(result));
+
+        res.json({ success: true, message: "Mã OTP đã được gửi đến email của bạn!" });
+
+    } catch (err) { 
+        console.error("DEBUG LỖI GỬI MAIL:", err);
+        res.status(500).json({ success: false, error: "Lỗi gửi mail: " + err.message }); 
     }
-  });
-
+});
 app.post('/api/auth/reset-password', async (req, res) => {
       try {
           const { email, otp, new_password } = req.body;
@@ -591,5 +600,40 @@ async function compareWithDatabase(inputVector) {
     }
   });
 
-
+async function sendEmail(toEmail, subject, content) {
+    try {
+        const response = await fetch("https://send.api.mailtrap.io/api/send", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer d463f03febe48efd33ae315d54744f89", 
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "from": { "email": "hello@demomailtrap.co", "name": "Safe VMU System" },
+                "to": [{ "email": toEmail }],
+                "subject": subject,
+                "text": content
+            })
+        });
+        const data = await response.json();
+        console.log("Mailtrap response:", data);
+    } catch (err) {
+        console.error("Lỗi gửi mail:", err);
+    }
+}
 server.listen(WS_PORT, () => console.log(`🚀 Server running on port ${WS_PORT}`));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
